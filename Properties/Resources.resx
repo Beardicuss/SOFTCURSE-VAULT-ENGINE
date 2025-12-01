@@ -1,0 +1,232 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Application Strings -->
+  <data name="AppTitle" xml:space="preserve">
+    <value>SOFTCURSE VAULT CLEANER v2.2</value>
+  </data>
+  <data name="AppInitialized" xml:space="preserve">
+    <value>=== SOFTCURSE VAULT CLEANER v2.2 INITIALIZED ===</value>
+  </data>
+  
+  <!-- Status Messages -->
+  <data name="StatusStandby" xml:space="preserve">
+    <value>STANDBY</value>
+  </data>
+  <data name="StatusScanning" xml:space="preserve">
+    <value>SCANNING SYSTEM...</value>
+  </data>
+  <data name="StatusCleaningStarted" xml:space="preserve">
+    <value>Cleaning started...</value>
+  </data>
+  <data name="StatusCleaningCompleted" xml:space="preserve">
+    <value>Cleaning completed</value>
+  </data>
+  <data name="StatusAbortRequested" xml:space="preserve">
+    <value>Abort requested</value>
+  </data>
+  <data name="StatusInitiatingCleanup" xml:space="preserve">
+    <value>INITIATING CLEANUP SEQUENCE</value>
+  </data>
+  <data name="StatusCleanupSuccess" xml:space="preserve">
+    <value>CLEANUP PROTOCOL SUCCESSFUL</value>
+  </data>
+  <data name="StatusMissionAborted" xml:space="preserve">
+    <value>MISSION ABORTED BY USER</value>
+  </data>
+  
+  <!-- Button Labels -->
+  <data name="ButtonStart" xml:space="preserve">
+    <value>INITIATE CLEANUP PROTOCOL</value>
+  </data>
+  <data name="ButtonQuickScan" xml:space="preserve">
+    <value>QUICK SCAN</value>
+  </data>
+  <data name="ButtonAbort" xml:space="preserve">
+    <value>ABORT MISSION</value>
+  </data>
+  
+  <!-- Admin Status -->
+  <data name="AdminActive" xml:space="preserve">
+    <value>[ADMIN PRIVILEGES: ACTIVE]</value>
+  </data>
+  <data name="AdminInactive" xml:space="preserve">
+    <value>[ADMIN PRIVILEGES: INACTIVE]</value>
+  </data>
+  
+  <!-- Error Messages -->
+  <data name="ErrorUnexpected" xml:space="preserve">
+    <value>An unexpected error occurred:</value>
+  </data>
+  <data name="ErrorCritical" xml:space="preserve">
+    <value>A critical error occurred:</value>
+  </data>
+  <data name="ErrorTitle" xml:space="preserve">
+    <value>SOFTCURSE VAULT CLEANER - ERROR</value>
+  </data>
+  <data name="ErrorCriticalTitle" xml:space="preserve">
+    <value>SOFTCURSE VAULT CLEANER - CRITICAL ERROR</value>
+  </data>
+  <data name="ErrorLoggedTo" xml:space="preserve">
+    <value>The error has been logged to:</value>
+  </data>
+  <data name="ErrorAppWillClose" xml:space="preserve">
+    <value>The application will now close.</value>
+  </data>
+  
+  <!-- Cleanup Task Names -->
+  <data name="TaskRecycleBin" xml:space="preserve">
+    <value>Recycle Bin Incineration</value>
+  </data>
+  <data name="TaskTempFiles" xml:space="preserve">
+    <value>TEMP Files Purge</value>
+  </data>
+  <data name="TaskPipCache" xml:space="preserve">
+    <value>PYTHON PIP Cache Purge</value>
+  </data>
+  <data name="TaskThumbnailCache" xml:space="preserve">
+    <value>Thumbnail Cache Clean</value>
+  </data>
+  <data name="TaskWindowsUpdate" xml:space="preserve">
+    <value>Windows Update Cache Flush</value>
+  </data>
+  <data name="TaskMicrosoftStore" xml:space="preserve">
+    <value>UWP App Cache Clean</value>
+  </data>
+  <data name="TaskNVIDIACache" xml:space="preserve">
+    <value>NVIDIA Cache Clean</value>
+  </data>
+  <data name="TaskUnrealEngine" xml:space="preserve">
+    <value>Unreal Engine Purge</value>
+  </data>
+  <data name="TaskAndroidSDK" xml:space="preserve">
+    <value>Android SDK Clean</value>
+  </data>
+  <data name="TaskEventLogs" xml:space="preserve">
+    <value>Event Log Scrub</value>
+  </data>
+  <data name="TaskBrowserCache" xml:space="preserve">
+    <value>Browser Data Wipe</value>
+  </data>
+  <data name="TaskFontCache" xml:space="preserve">
+    <value>Font Cache Rebuild</value>
+  </data>
+  <data name="TaskDISM" xml:space="preserve">
+    <value>DISM Cleanup</value>
+  </data>
+  <data name="TaskDriverCache" xml:space="preserve">
+    <value>Driver Cache Purge</value>
+  </data>
+  <data name="TaskOrphanedInstallers" xml:space="preserve">
+    <value>Orphaned Installer Removal</value>
+  </data>
+  <data name="TaskPagefile" xml:space="preserve">
+    <value>Pagefile Configuration</value>
+  </data>
+  <data name="TaskSystemRestore" xml:space="preserve">
+    <value>System Restore Relocation</value>
+  </data>
+  
+  <!-- Log Messages -->
+  <data name="LogExecuting" xml:space="preserve">
+    <value>EXECUTING:</value>
+  </data>
+  <data name="LogCompleted" xml:space="preserve">
+    <value>COMPLETED:</value>
+  </data>
+  <data name="LogFailed" xml:space="preserve">
+    <value>FAILED:</value>
+  </data>
+  <data name="LogSkipped" xml:space="preserve">
+    <value>SKIPPED:</value>
+  </data>
+  <data name="LogCleaned" xml:space="preserve">
+    <value>CLEANED:</value>
+  </data>
+  
+  <!-- Scan Messages -->
+  <data name="ScanComplete" xml:space="preserve">
+    <value>SCAN COMPLETE: {0}MB RECOVERABLE</value>
+  </data>
+  <data name="ScanTempFolders" xml:space="preserve">
+    <value>Scanning TEMP folders...</value>
+  </data>
+  <data name="ScanBrowserCaches" xml:space="preserve">
+    <value>Scanning browser caches...</value>
+  </data>
+  <data name="ScanWindowsUpdate" xml:space="preserve">
+    <value>Scanning Windows Update cache...</value>
+  </data>
+  <data name="ScanThumbnailCache" xml:space="preserve">
+    <value>Scanning thumbnail cache...</value>
+  </data>
+  
+  <!-- Time/Space Display -->
+  <data name="TimeFormat" xml:space="preserve">
+    <value>Time: {0}</value>
+  </data>
+  <data name="SpaceFreedFormat" xml:space="preserve">
+    <value>Freed: {0} MB</value>
+  </data>
+  <data name="DiskSpaceFormat" xml:space="preserve">
+    <value>C: {0}GB FREE</value>
+  </data>
+</root>

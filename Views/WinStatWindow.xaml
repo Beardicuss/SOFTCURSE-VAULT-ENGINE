@@ -1,0 +1,408 @@
+<Window x:Class="BorderlandsStorageCleaner.Views.WinStatWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BorderlandsStorageCleaner"
+        xmlns:winstat="clr-namespace:BorderlandsStorageCleaner.WinStat"
+        xmlns:controls="clr-namespace:BorderlandsStorageCleaner.WinStat.Controls"
+        Title="SOFTCURSE DISK ANALYZER v1.0"
+        Height="800" Width="1200"
+        MinHeight="700" MinWidth="1000"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterScreen"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.DataContext>
+        <winstat:WinStatViewModel/>
+    </Window.DataContext>
+
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.95">
+            <GradientStop Color="#0A0A0A" Offset="0.0"/>
+            <GradientStop Color="#151515" Offset="0.3"/>
+            <GradientStop Color="#1A0A00" Offset="0.5"/>
+            <GradientStop Color="#151515" Offset="0.7"/>
+            <GradientStop Color="#0A0A0A" Offset="1.0"/>
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <Window.Resources>
+        <!-- Converters -->
+        <local:BoolToVisibilityConverter x:Key="BoolToVisConverter"/>
+        
+        <!-- Colors -->
+        <SolidColorBrush x:Key="OrangeGlow" Color="#FF6600"/>
+        <SolidColorBrush x:Key="DarkBg" Color="#0A0A0A"/>
+        <SolidColorBrush x:Key="PanelBg" Color="#151515"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#FF6600"/>
+
+        <!-- Tech Button Style -->
+        <Style x:Key="TechButton" TargetType="Button">
+            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Foreground" Value="#FF6600"/>
+            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="15,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FF6600"/>
+                                <Setter Property="Foreground" Value="#000000"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tech DataGrid Style -->
+        <Style x:Key="TechDataGrid" TargetType="DataGrid">
+            <Setter Property="Background" Value="#0A0A0A"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="GridLinesVisibility" Value="None"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="RowBackground" Value="#0A0A0A"/>
+            <Setter Property="AlternatingRowBackground" Value="#111111"/>
+            <Setter Property="ColumnHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#151515"/>
+                        <Setter Property="Foreground" Value="#FF6600"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="FontFamily" Value="Consolas"/>
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="Padding" Value="8,5"/>
+                        <Setter Property="BorderBrush" Value="#FF6600"/>
+                        <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="CellStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#CCCCCC"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#FF6600"/>
+                                <Setter Property="Foreground" Value="#000000"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="{StaticResource BorderColor}" BorderThickness="2">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>  <!-- Title bar -->
+                <RowDefinition Height="60"/>  <!-- Controls -->
+                <RowDefinition Height="*"/>   <!-- Content -->
+                <RowDefinition Height="30"/>  <!-- Status bar -->
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Grid Grid.Row="0" Background="#0A0A0A">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text=" SOFTCURSE DISK ANALYZER v1.0" 
+                           VerticalAlignment="Center" 
+                           FontFamily="Consolas" 
+                           FontSize="14" 
+                           FontWeight="Bold" 
+                           Foreground="#FF6600" 
+                           Margin="10,0"/>
+
+                <!-- Window Controls -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Content="–" Width="35" Height="28" Margin="2,0" 
+                            Style="{StaticResource TechButton}" Click="MinimizeWindow" 
+                            ToolTip="Minimize"/>
+                    <Button Content="□" Width="35" Height="28" Margin="2,0" 
+                            Style="{StaticResource TechButton}" Click="MaximizeRestoreWindow" 
+                            ToolTip="Maximize/Restore"/>
+                    <Button Content="✕" Width="35" Height="28" Margin="2,0" 
+                            Style="{StaticResource TechButton}" Click="CloseWindow" 
+                            ToolTip="Close"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Control Panel -->
+            <Border Grid.Row="1" Background="#151515" BorderBrush="#FF6600" BorderThickness="0,1">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Path:" VerticalAlignment="Center" Foreground="#CCCCCC" 
+                               FontFamily="Consolas" Margin="0,0,10,0"/>
+                    
+                    <TextBox Grid.Column="1" Text="{Binding SelectedPath}" 
+                             Background="#0A0A0A" Foreground="#FF6600" BorderBrush="#FF6600"
+                             FontFamily="Consolas" Padding="5" VerticalContentAlignment="Center"/>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,0,0">
+                        <Button Content="QUICK SCAN" Style="{StaticResource TechButton}" 
+                                Command="{Binding ScanCommand}" Margin="0,0,5,0"/>
+                        <Button Content="DEEP SCAN" Style="{StaticResource TechButton}" 
+                                Command="{Binding DeepScanCommand}" Margin="0,0,5,0"/>
+                        <Button Content="CANCEL" Style="{StaticResource TechButton}" 
+                                Command="{Binding CancelCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Content Area -->
+            <TabControl Grid.Row="2" Background="Transparent" BorderBrush="#FF6600" 
+                        BorderThickness="0,1,0,0" Margin="10">
+                <TabControl.Resources>
+                    <Style TargetType="TabItem">
+                        <Setter Property="FontFamily" Value="Consolas"/>
+                        <Setter Property="FontSize" Value="12"/>
+                        <Setter Property="FontWeight" Value="Bold"/>
+                        <Setter Property="Foreground" Value="#FF6600"/>
+                        <Setter Property="Background" Value="#151515"/>
+                        <Setter Property="BorderBrush" Value="#FF6600"/>
+                        <Setter Property="Padding" Value="15,8"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="TabItem">
+                                    <Border x:Name="Border" Background="{TemplateBinding Background}" 
+                                            BorderBrush="{TemplateBinding BorderBrush}" 
+                                            BorderThickness="1,1,1,0" Margin="2,0">
+                                        <ContentPresenter x:Name="ContentSite" 
+                                                        ContentSource="Header" 
+                                                        HorizontalAlignment="Center" 
+                                                        VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#FF6600"/>
+                                            <Setter Property="Foreground" Value="#000000"/>
+                                        </Trigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#FF8800"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </TabControl.Resources>
+
+                <!-- Summary Tab -->
+                <TabItem Header="SUMMARY">
+                    <ScrollViewer Background="#0A0A0A">
+                        <StackPanel Margin="20">
+                            <TextBlock Text="SCAN RESULTS" FontFamily="Consolas" FontSize="22" 
+                                       FontWeight="Bold" Foreground="#FF6600" Margin="0,0,0,20"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Column -->
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock Text="Total Size:" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="14" Margin="0,5"/>
+                                    <TextBlock Text="{Binding TotalSize}" Foreground="#FF6600" FontFamily="Consolas" 
+                                               FontSize="28" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                                    <TextBlock Text="Files:" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="14" Margin="0,5"/>
+                                    <TextBlock Text="{Binding FileCount}" Foreground="#FF6600" FontFamily="Consolas" 
+                                               FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+                                </StackPanel>
+
+                                <!-- Right Column -->
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                    <TextBlock Text="Directories:" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="14" Margin="0,5"/>
+                                    <TextBlock Text="{Binding DirectoryCount}" Foreground="#FF6600" FontFamily="Consolas" 
+                                               FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                                    <TextBlock Text="Scan Duration:" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="14" Margin="0,5"/>
+                                    <TextBlock Text="{Binding ScanDuration}" Foreground="#FF6600" FontFamily="Consolas" 
+                                               FontSize="24" FontWeight="Bold"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Circular Progress (visible during scan) -->
+                            <Border Margin="0,30,0,10" 
+                                    Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisConverter}}">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <controls:CircularProgress Value="{Binding Progress}" 
+                                                               Width="220" Height="220"
+                                                               Margin="0,0,0,15"/>
+                                    
+                                    <TextBlock Text="{Binding CurrentFile}" 
+                                               Foreground="#888888" 
+                                               FontFamily="Consolas" 
+                                               FontSize="11" 
+                                               TextTrimming="CharacterEllipsis"
+                                               TextAlignment="Center"
+                                               MaxWidth="600"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Top Files Tab -->
+                <TabItem Header="TOP FILES">
+                    <DataGrid Style="{StaticResource TechDataGrid}" 
+                              ItemsSource="{Binding TopFiles}" Margin="10">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="File Name" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="3*"/>
+                            <DataGridTextColumn Header="Size" Width="*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="Size">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Categories Tab -->
+                <TabItem Header="CATEGORIES">
+                    <DataGrid Style="{StaticResource TechDataGrid}" 
+                              ItemsSource="{Binding Categories}" Margin="10">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Files" Binding="{Binding FileCount}" Width="*"/>
+                            <DataGridTextColumn Header="Total Size" Width="2*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="TotalSize">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="% of Total" Width="*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="PercentOfTotal" StringFormat="{}{0:0.##}%"/>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Aged Files Tab -->
+                <TabItem Header="AGED FILES">
+                    <DataGrid Style="{StaticResource TechDataGrid}" 
+                              ItemsSource="{Binding AgedFiles}" Margin="10">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="File Name" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Path" Binding="{Binding Path}" Width="3*"/>
+                            <DataGridTextColumn Header="Size" Width="*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="Size">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Last Accessed" Binding="{Binding LastAccessed}" Width="1.5*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Duplicates Tab -->
+                <TabItem Header="DUPLICATES">
+                    <DataGrid Style="{StaticResource TechDataGrid}" 
+                              ItemsSource="{Binding Duplicates}" Margin="10">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Hash" Binding="{Binding Hash}" Width="2*"/>
+                            <DataGridTextColumn Header="Copies" Binding="{Binding Files.Count}" Width="*"/>
+                            <DataGridTextColumn Header="File Size" Width="*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="FileSize">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Wasted Space" Width="*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="WastedSpace">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+
+                <!-- Recommendations Tab -->
+                <TabItem Header="RECOMMENDATIONS">
+                    <DataGrid Style="{StaticResource TechDataGrid}" 
+                              ItemsSource="{Binding Recommendations}" Margin="10">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*"/>
+                            <DataGridTextColumn Header="Potential Savings" Width="1.5*">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="PotentialSavings">
+                                        <Binding.Converter>
+                                            <local:BytesToStringConverter/>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Files Affected" Binding="{Binding AffectedFiles.Count}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
+
+            <!-- Status Bar -->
+            <Border Grid.Row="3" Background="#0A0A0A" BorderBrush="#FF6600" BorderThickness="0,1,0,0">
+                <TextBlock Text="{Binding Status}" Foreground="#FF6600" FontFamily="Consolas" 
+                           Padding="10,5" VerticalAlignment="Center"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,433 @@
+﻿<Window x:Class="BorderlandsStorageCleaner.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SOFTCURSE VAULT CLEANER v2.2"
+        Height="750" Width="1000"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterScreen"
+        MinWidth="800"
+        MinHeight="600"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.95">
+            <GradientStop Color="#0A0A0A" Offset="0.0"/>
+            <GradientStop Color="#151515" Offset="0.3"/>
+            <GradientStop Color="#1A0A00" Offset="0.5"/>
+            <GradientStop Color="#151515" Offset="0.7"/>
+            <GradientStop Color="#0A0A0A" Offset="1.0"/>
+        </LinearGradientBrush>
+    </Window.Background>
+
+    <Window.Resources>
+        <!-- Colors -->
+        <SolidColorBrush x:Key="OrangeGlow" Color="#FF6600"/>
+        <SolidColorBrush x:Key="RedGlow" Color="#FF3300"/>
+        <SolidColorBrush x:Key="DarkBg" Color="#0A0A0A"/>
+        <SolidColorBrush x:Key="PanelBg" Color="#151515"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#FF6600"/>
+
+        <!-- Semi-transparent orange for selection -->
+        <SolidColorBrush x:Key="SelectionBrush" Color="#FF6600" Opacity="0.3"/>
+
+        <!-- Tech Button Style with Animations -->
+        <Style x:Key="TechButton" TargetType="Button">
+            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Foreground" Value="#FF6600"/>
+            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Border.Effect>
+                                <DropShadowEffect x:Name="shadow" Color="#FF6600" BlurRadius="10" Opacity="0.3"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                          To="#FF6600" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="shadow" 
+                                                          Storyboard.TargetProperty="Color"
+                                                          To="#FFAA00" Duration="0:0:0.2"/>
+                                            <DoubleAnimation Storyboard.TargetName="shadow" 
+                                                           Storyboard.TargetProperty="BlurRadius"
+                                                           To="20" Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="border" 
+                                                          Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                          To="#1A1A1A" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="shadow" 
+                                                          Storyboard.TargetProperty="Color"
+                                                          To="#FF6600" Duration="0:0:0.2"/>
+                                            <DoubleAnimation Storyboard.TargetName="shadow" 
+                                                           Storyboard.TargetProperty="BlurRadius"
+                                                           To="10" Duration="0:0:0.2"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FFAA00"/>
+                                <Setter Property="Foreground" Value="#000000"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#CC5500"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#CC5500"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#0A0A0A"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#444444"/>
+                                <Setter Property="Foreground" Value="#444444"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tech CheckBox Style -->
+        <Style x:Key="TechCheckBox" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0"
+                                    Background="#0A0A0A" BorderBrush="#FF6600" BorderThickness="2">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#FF6600" BlurRadius="5" Opacity="0.5"/>
+                                </Border.Effect>
+                                <TextBlock x:Name="checkMark" Text="✓" Foreground="#FF6600" 
+                                           FontWeight="Bold" HorizontalAlignment="Center" 
+                                           VerticalAlignment="Center" Visibility="Collapsed"/>
+                            </Border>
+
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="checkMark" Property="Foreground" Value="#FFAA00"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tech TextBox Style -->
+        <Style x:Key="TechTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#0A0A0A"/>
+            <Setter Property="Foreground" Value="#FF6600"/>
+            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="CaretBrush" Value="#FF6600"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource SelectionBrush}"/>
+        </Style>
+
+        <!-- ToolTip Style -->
+        <Style x:Key="TechToolTip" TargetType="ToolTip">
+            <Setter Property="Background" Value="#151515"/>
+            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#FF6600"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Padding" Value="8,4"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Main Container with Resize Borders -->
+   <Grid>
+
+        <!-- BACKGROUND LOGO -->
+        <Image Source="Resources/softcurse_logo.png"
+               Stretch="Uniform"
+               Opacity="0.12"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               IsHitTestVisible="False">
+            <Image.OpacityMask>
+                <ImageBrush ImageSource="Resources/softcurse_logo.png"/>
+            </Image.OpacityMask>
+
+            <Image.Effect>
+                <DropShadowEffect 
+                    Color="#FF6600"
+                    BlurRadius="40"
+                    ShadowDepth="0"
+                    Opacity="0.8"/>
+            </Image.Effect>
+        </Image>
+
+
+        <!-- Resize Borders (only visible in windowed mode) -->
+        <Border x:Name="resizeBorder" Background="Transparent" 
+                BorderBrush="#FF6600" BorderThickness="3" 
+                CornerRadius="0" Visibility="Visible">
+
+            <!-- Inner content area -->
+            <Border Background="#CC0A0A0A" Margin="3">
+                <Border.Effect>
+                    <DropShadowEffect Color="#FF6600" BlurRadius="40" ShadowDepth="0" Opacity="0.9"/>
+                </Border.Effect>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="60"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- TITLE BAR -->
+                    <Border Grid.Row="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="0,0,0,2"
+                            MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="20,0">
+                                <TextBlock Text=" SOFTCURSE VAULT CLEANER v2.2 "
+                                           FontFamily="Consolas"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="#FF6600">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect Color="#FF6600" BlurRadius="10" ShadowDepth="0"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
+                                <TextBlock x:Name="txtAdminStatus"
+                                           Text="[ADMIN PRIVILEGES: CHECKING...]"
+                                           FontFamily="Consolas"
+                                           FontSize="10"
+                                           Foreground="#FF3300"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10">
+                                <Button Content="–" Width="40" Height="30" Style="{StaticResource TechButton}" 
+                                        Click="MinimizeWindow" ToolTip="Minimize"/>
+                                <Button Content="✕" Width="40" Height="30" Style="{StaticResource TechButton}" 
+                                        Click="CloseWindow" ToolTip="Close"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10">
+                        <Button Content=" INITIATE CLEANUP PROTOCOL " Style="{StaticResource TechButton}" 
+                                Command="{Binding StartCleaningCommand}" Margin="5"/>
+                        <Button Content=" QUICK SCAN " Style="{StaticResource TechButton}" 
+                                Command="{Binding QuickScanCommand}" Margin="5"/>
+                        <Button Content=" ABORT PROTOCOL " Style="{StaticResource TechButton}" 
+                                Command="{Binding AbortCleaningCommand}" Margin="5"/>
+                        <Button Content=" DISK ANALYZER " Style="{StaticResource TechButton}" 
+                                Click="OpenDiskAnalyzer" Margin="5"/>
+                    </StackPanel>
+
+                    <!-- MAIN CONTENT -->
+                    <Grid Grid.Row="1" Margin="15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="3*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- LEFT PANEL -->
+                        <Border Grid.Column="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="0,0,10,0">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#FF6600" BlurRadius="25" Opacity="0.5"/>
+                            </Border.Effect>
+
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="280"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Margin="15,15,15,5">
+                                    <TextBlock Text=" SYSTEM STATUS" Foreground="#FF6600" FontWeight="Bold" 
+                                               FontFamily="Consolas" FontSize="14"/>
+                                    <TextBlock x:Name="txtDiskSpace" Text="{Binding DiskSpace}" Foreground="#00FF00" 
+                                               FontFamily="Consolas" Margin="0,5"/>
+                                    <TextBlock x:Name="txtStatus" Text="{Binding Status}" Foreground="#FFAA00" 
+                                               FontFamily="Consolas"/>
+                                    <TextBlock x:Name="txtTimeElapsed" Text="{Binding TimeElapsed}" Foreground="#CCCCCC" 
+                                               FontFamily="Consolas" FontSize="11"/>
+                                    <TextBlock x:Name="txtSpaceFreed" Text="{Binding SpaceFreed}" Foreground="#CCCCCC" 
+                                               FontFamily="Consolas" FontSize="11"/>
+                                </StackPanel>
+
+                                <Viewbox Grid.Row="1" Margin="20">
+                                    <Canvas Width="260" Height="260">
+                                        <Ellipse Width="260" Height="260" Stroke="#FF6600" StrokeThickness="4"/>
+                                        <Path x:Name="progressRing" Stroke="#FF3300" StrokeThickness="12" 
+                                              Data="M 130,20 A 110,110 0 0 1 130,240" 
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                            <Path.Effect>
+                                                <DropShadowEffect Color="#FF3300" BlurRadius="20" Opacity="0.8"/>
+                                            </Path.Effect>
+                                        </Path>
+                                        <TextBlock x:Name="txtProgress" Canvas.Left="60" Canvas.Top="100" Width="140"
+                                                   Foreground="#FF6600" FontWeight="Bold"
+                                                   FontFamily="Consolas" FontSize="12" TextAlignment="Center">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="CLEANUP PROGRESS: {0}%">
+                                                    <Binding Path="Progress"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                        <TextBlock x:Name="txtCurrentTask" Canvas.Left="40" Canvas.Top="140" Width="180"
+                                                   Text="{Binding Status}" Foreground="#CCCCCC" FontFamily="Consolas"
+                                                   FontSize="10" TextAlignment="Center"/>
+                                    </Canvas>
+                                </Viewbox>
+
+                                <ProgressBar x:Name="progressBar" Grid.Row="2" Height="20" Margin="20,10"
+                                             Value="{Binding Progress, Mode=OneWay}" Maximum="100"
+                                             Foreground="#FF6600" Background="#0A0A0A" 
+                                             BorderBrush="#FF6600" BorderThickness="2"
+                                             ToolTip="Overall cleanup progress"/>
+
+                                <StackPanel Grid.Row="3" Margin="20">
+                                    <Button x:Name="btnStart" Content="INITIATE CLEANUP PROTOCOL" 
+                                        Style="{StaticResource TechButton}" Command="{Binding StartCleaningCommand}" Margin="0,5"
+                                        ToolTip="Start comprehensive storage cleanup"/>
+                                    <Button x:Name="btnQuickScan" Content="QUICK SCAN" 
+                                        Style="{StaticResource TechButton}" Command="{Binding QuickScanCommand}" Margin="0,5"
+                                        ToolTip="Quick scan for temporary files"/>
+                                    <Button x:Name="btnAbort" Content="ABORT MISSION" 
+                                        Style="{StaticResource TechButton}" Command="{Binding AbortCleaningCommand}" Margin="0,5"
+                                        ToolTip="Cancel current operation"/>
+                                    <Button x:Name="btnDiskAnalyzer" Content="DISK ANALYZER" 
+                                        Style="{StaticResource TechButton}" Click="OpenDiskAnalyzer" Margin="0,5"
+                                        ToolTip="Advanced disk usage analyzer"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- RIGHT PANEL -->
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="220"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="10,0,0,10">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#FF6600" BlurRadius="15" Opacity="0.4"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Text=" SYSTEM LOG" Foreground="#FF6600" FontWeight="Bold" 
+                                               FontFamily="Consolas" Margin="15,10"/>
+
+                                    <ScrollViewer Grid.Row="1" Margin="10,5,10,10" VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <TextBox x:Name="txtLog" IsReadOnly="True" Background="Transparent" 
+                                                 Foreground="#00FF00" FontFamily="Consolas" FontSize="11" 
+                                                 TextWrapping="Wrap" BorderThickness="0" VerticalAlignment="Top"
+                                                 Text="[SYSTEM INITIALIZED]&#x0a;Ready for cleanup protocol..."/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Row="1" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="10,0,0,0">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#FF6600" BlurRadius="15" Opacity="0.4"/>
+                                </Border.Effect>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <StackPanel Margin="15">
+                                        <TextBlock Text=" CONFIGURATION" Foreground="#FF6600" FontWeight="Bold" 
+                                                   FontFamily="Consolas" FontSize="14" Margin="0,0,0,10"/>
+
+                                        <CheckBox x:Name="chkTempFiles" Content="Delete temporary files" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanTempFiles}"/>
+                                        <CheckBox x:Name="chkCache" Content="Clear application cache" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanCache}"/>
+                                        <CheckBox x:Name="chkLogs" Content="Remove old log files" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanLogs}"/>
+                                        <CheckBox x:Name="chkRecycleBin" Content="Empty recycle bin" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanRecycleBin}"/>
+                                        <CheckBox x:Name="chkPrefetch" Content="Clear prefetch data" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanPrefetch}"/>
+
+                                        <TextBlock Text="Custom folders to clean:" Foreground="#CCCCCC" 
+                                                   FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
+                                        <TextBox x:Name="txtCustomPaths" Style="{StaticResource TechTextBox}" 
+                                                 Height="60" TextWrapping="Wrap" AcceptsReturn="True"
+                                                 Text="{Binding CustomPaths}"/>
+
+                                        <TextBlock Text="Advanced options:" Foreground="#CCCCCC" 
+                                                   FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
+                                        <CheckBox x:Name="chkDeepScan" Content="Deep scan mode" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding DeepScanMode}"/>
+                                        <CheckBox x:Name="chkBackup" Content="Create backup before deletion" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CreateBackup}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Border>
+
+        <!-- Resize Grips -->
+        <Grid x:Name="resizeGrid" Visibility="Visible">
+            <Rectangle Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="SizeNWSE" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="SizeNESW" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="SizeNESW" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Width="5" HorizontalAlignment="Left" VerticalAlignment="Stretch" Cursor="SizeWE" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Width="5" HorizontalAlignment="Right" VerticalAlignment="Stretch" Cursor="SizeWE" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Top" Cursor="SizeNS" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+            <Rectangle Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Cursor="SizeNS" Fill="Transparent" MouseLeftButtonDown="ResizeWindow"/>
+        </Grid>
+    </Grid>
+</Window>

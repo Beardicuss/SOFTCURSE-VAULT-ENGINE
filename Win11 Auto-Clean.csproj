@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Win11 Auto-Clean</AssemblyName>
+    <RootNamespace>BorderlandsStorageCleaner</RootNamespace>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <NoWarn>CA1416</NoWarn><!-- Suppress platform compatibility warnings for Windows-only app -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\softcurse_logo.png" />
+  </ItemGroup>
+
+</Project>
