@@ -146,7 +146,14 @@ namespace BorderlandsStorageCleaner
         
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            this.DragMove();
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                try
+                {
+                    this.DragMove();
+                }
+                catch (InvalidOperationException) { }
+            }
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
@@ -156,8 +163,14 @@ namespace BorderlandsStorageCleaner
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
-                this.DragMove();
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                try
+                {
+                    this.DragMove();
+                }
+                catch (InvalidOperationException) { }
+            }
         }
 
         private void MinimizeWindow(object sender, RoutedEventArgs e)

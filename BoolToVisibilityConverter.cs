@@ -10,10 +10,14 @@ namespace BorderlandsStorageCleaner
     /// </summary>
     public class BoolToVisibilityConverter : IValueConverter
     {
+        public bool IsInverted { get; set; }
+
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             if (value is bool boolValue)
             {
+                if (IsInverted)
+                    return boolValue ? Visibility.Collapsed : Visibility.Visible;
                 return boolValue ? Visibility.Visible : Visibility.Collapsed;
             }
             return Visibility.Collapsed;
@@ -23,7 +27,8 @@ namespace BorderlandsStorageCleaner
         {
             if (value is Visibility visibility)
             {
-                return visibility == Visibility.Visible;
+                bool result = visibility == Visibility.Visible;
+                return IsInverted ? !result : result;
             }
             return false;
         }

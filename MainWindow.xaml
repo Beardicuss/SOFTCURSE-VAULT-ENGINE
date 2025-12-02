@@ -246,17 +246,7 @@
                         </Grid>
                     </Border>
 
-                    <!-- Action Buttons -->
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10">
-                        <Button Content=" INITIATE CLEANUP PROTOCOL " Style="{StaticResource TechButton}" 
-                                Command="{Binding StartCleaningCommand}" Margin="5"/>
-                        <Button Content=" QUICK SCAN " Style="{StaticResource TechButton}" 
-                                Command="{Binding QuickScanCommand}" Margin="5"/>
-                        <Button Content=" ABORT PROTOCOL " Style="{StaticResource TechButton}" 
-                                Command="{Binding AbortCleaningCommand}" Margin="5"/>
-                        <Button Content=" DISK ANALYZER " Style="{StaticResource TechButton}" 
-                                Click="OpenDiskAnalyzer" Margin="5"/>
-                    </StackPanel>
+                    <!-- Action Buttons (Removed: Duplicates of Left Panel buttons and caused layout issues) -->
 
                     <!-- MAIN CONTENT -->
                     <Grid Grid.Row="1" Margin="15">
@@ -292,7 +282,7 @@
                                                FontFamily="Consolas" FontSize="11"/>
                                 </StackPanel>
 
-                                <Viewbox Grid.Row="1" Margin="20">
+                                <Viewbox Grid.Row="1" Margin="20" IsHitTestVisible="False">
                                     <Canvas Width="260" Height="260">
                                         <Ellipse Width="260" Height="260" Stroke="#FF6600" StrokeThickness="4"/>
                                         <Path x:Name="progressRing" Stroke="#FF3300" StrokeThickness="12" 

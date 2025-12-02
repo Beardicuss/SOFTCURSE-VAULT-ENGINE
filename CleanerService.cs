@@ -179,8 +179,8 @@ namespace BorderlandsStorageCleaner
         {
             try
             {
-                RunCommand("wsreset.exe", "");
-                LogStatus("MICROSOFT STORE: Reset command executed (wsreset.exe). Store app will restart.");
+                // RunCommand("wsreset.exe", ""); // Disabled: Forces Store app to open
+                LogStatus("MICROSOFT STORE: Skipping reset command to prevent app launch.");
 
                 string appPackageTempPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
                 string tempStatePath = Path.Combine(appPackageTempPath, "TempState");
@@ -238,6 +238,8 @@ namespace BorderlandsStorageCleaner
 
                     foreach (string log in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
                     {
+                        if (_abortRequested) break;
+
                         try
                         {
                             using (Process clearProcess = new Process())
@@ -250,8 +252,13 @@ namespace BorderlandsStorageCleaner
                                 clearProcess.StartInfo.CreateNoWindow = true;
                                 clearProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                                 clearProcess.Start();
-                                clearProcess.WaitForExit();
+                                if (!clearProcess.WaitForExit(2000)) // Reduced to 2s timeout per log
+                                {
+                                    try { clearProcess.Kill(); } catch { }
+                                }
                             }
+                            // Yield to prevent CPU hogging
+                            Thread.Sleep(5);
                         }
                         catch (Exception ex)
                         {
@@ -398,29 +405,42 @@ namespace BorderlandsStorageCleaner
                 return;
             }
 
+            if (_abortRequested) return;
+
             try
             {
                 int filesDeleted = 0;
                 int dirsDeleted = 0;
 
-                foreach (string file in Directory.GetFiles(path))
+                // Use EnumerateFiles to reduce memory usage (don't load all into memory at once)
+                foreach (string file in Directory.EnumerateFiles(path))
                 {
+                    if (_abortRequested) return;
+                    
                     try
                     {
                         File.Delete(file);
                         filesDeleted++;
                     }
                     catch { }
+                    
+                    // Yield every 100 files to keep UI responsive and lower CPU priority impact
+                    if (filesDeleted % 100 == 0) Thread.Sleep(1);
                 }
 
-                foreach (string dir in Directory.GetDirectories(path))
+                // Use EnumerateDirectories
+                foreach (string dir in Directory.EnumerateDirectories(path))
                 {
+                    if (_abortRequested) return;
+
                     try
                     {
                         Directory.Delete(dir, true);
                         dirsDeleted++;
                     }
                     catch { }
+                    
+                    if (dirsDeleted % 10 == 0) Thread.Sleep(1);
                 }
 
                 LogStatus($"CLEANED: {description} ({filesDeleted} files, {dirsDeleted} folders)");
@@ -486,40 +506,43 @@ namespace BorderlandsStorageCleaner
             }
 
             int removedCount = 0;
-            foreach (string file in Directory.GetFiles(installerDir, "*.msi"))
+            try
             {
-                try
+                foreach (string file in Directory.EnumerateFiles(installerDir, "*.msi"))
                 {
-                    FileInfo fi = new FileInfo(file);
-                    if (fi.CreationTime < DateTime.Now.AddMonths(-6))
+                    if (_abortRequested) return;
+                    try
                     {
-                        File.Delete(file);
-                        removedCount++;
-                        LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
+                        FileInfo fi = new FileInfo(file);
+                        if (fi.CreationTime < DateTime.Now.AddMonths(-6))
+                        {
+                            File.Delete(file);
+                            removedCount++;
+                            LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
+                        }
                     }
+                    catch { }
                 }
-                catch (Exception ex)
+
+                foreach (string file in Directory.EnumerateFiles(installerDir, "*.msp"))
                 {
-                    LogStatus($"FAILED TO REMOVE: {Path.GetFileName(file)} - {ex.Message}");
+                    if (_abortRequested) return;
+                    try
+                    {
+                        FileInfo fi = new FileInfo(file);
+                        if (fi.CreationTime < DateTime.Now.AddMonths(-6))
+                        {
+                            File.Delete(file);
+                            removedCount++;
+                            LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
+                        }
+                    }
+                    catch { }
                 }
             }
-
-            foreach (string file in Directory.GetFiles(installerDir, "*.msp"))
+            catch (Exception ex)
             {
-                try
-                {
-                    FileInfo fi = new FileInfo(file);
-                    if (fi.CreationTime < DateTime.Now.AddMonths(-6))
-                    {
-                        File.Delete(file);
-                        removedCount++;
-                        LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogStatus($"FAILED TO REMOVE: {Path.GetFileName(file)} - {ex.Message}");
-                }
+                LogStatus($"ORPHANED CLEANUP ERROR: {ex.Message}");
             }
 
             LogStatus($"ORPHANED INSTALLERS: Removed {removedCount} files");
@@ -539,11 +562,17 @@ namespace BorderlandsStorageCleaner
                     process.StartInfo.RedirectStandardOutput = true;
                     process.StartInfo.RedirectStandardError = true;
                     process.Start();
+                    
+                    // Add timeout to prevent hangs (e.g. wsreset.exe can hang)
+                    if (!process.WaitForExit(30000)) // 30 seconds timeout
+                    {
+                        try { process.Kill(); } catch { }
+                        LogStatus($"COMMAND TIMEOUT: {fileName} {arguments}");
+                        return;
+                    }
 
                     string output = process.StandardOutput.ReadToEnd();
                     string error = process.StandardError.ReadToEnd();
-
-                    process.WaitForExit();
 
                     if (!string.IsNullOrEmpty(error) && process.ExitCode != 0)
                     {

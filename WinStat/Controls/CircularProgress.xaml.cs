@@ -16,7 +16,12 @@ namespace BorderlandsStorageCleaner.WinStat.Controls
         public CircularProgress()
         {
             InitializeComponent();
-            SizeChanged += (s, e) => UpdateVisual();
+            Loaded += (s, e) => 
+            {
+                var sb = (System.Windows.Media.Animation.Storyboard)Resources["RotateRing"];
+                sb.Begin();
+                UpdateVisual();
+            };
         }
 
         public double Value
@@ -40,16 +45,14 @@ namespace BorderlandsStorageCleaner.WinStat.Controls
 
         private void UpdateVisual()
         {
-            if (ActualWidth == 0 || ActualHeight == 0)
-                return;
+            // Ensure we have a valid size for the path
+            // The Path is fixed size 150x150 in XAML, so we use that radius
+            double radius = 150 / 2 - 6; // 75 - half stroke thickness (6) = 69
+            double centerX = 150 / 2;
+            double centerY = 150 / 2;
 
             double value = Math.Max(0, Math.Min(100, Value));
             double angle = value * 3.6; // 0-100 → 0-360 degrees
-            double thickness = 12;
-            double radius = Math.Min(ActualWidth, ActualHeight) / 2 - thickness;
-
-            double centerX = ActualWidth / 2;
-            double centerY = ActualHeight / 2;
 
             // Calculate end point on the arc
             double angleRad = (angle - 90) * Math.PI / 180;
@@ -83,19 +86,11 @@ namespace BorderlandsStorageCleaner.WinStat.Controls
             // Update text with smooth animation
             if (Math.Abs(value - _oldValue) > 0.1)
             {
-                var animation = new DoubleAnimation
-                {
-                    From = _oldValue,
-                    To = value,
-                    Duration = TimeSpan.FromMilliseconds(150),
-                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-                };
-
-                animation.Completed += (s, e) =>
-                {
-                    PercentageText.Text = $"{(int)value}%";
-                };
-
+                // Animate text number
+                // Note: We can't easily animate the string text, so we just set it
+                // But we could animate a double and bind to it if needed.
+                // For now, direct update is fine for the text.
+                PercentageText.Text = $"{(int)value}%";
                 _oldValue = value;
             }
             else

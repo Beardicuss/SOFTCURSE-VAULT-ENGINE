@@ -331,12 +331,18 @@ namespace BorderlandsStorageCleaner
 
         private void UpdateProgress(int percent)
         {
-            Progress = percent;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                Progress = percent;
+            });
         }
 
         private void UpdateStatus(string message)
         {
-            Status = message;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                Status = message;
+            });
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

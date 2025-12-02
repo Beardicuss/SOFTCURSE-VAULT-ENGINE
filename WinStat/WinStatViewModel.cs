@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -21,7 +22,7 @@ namespace BorderlandsStorageCleaner.WinStat
         // Properties
         private string _selectedPath = "C:\\";
         private bool _isScanning;
-        private int _progress;
+        private double _progress;
         private string _status = "Ready";
         private string _currentFile;
         private ScanResult _scanResult;
@@ -54,6 +55,23 @@ namespace BorderlandsStorageCleaner.WinStat
             ScanCommand = new RelayCommand(StartScan, () => !IsScanning);
             DeepScanCommand = new RelayCommand(StartDeepScan, () => !IsScanning);
             CancelCommand = new RelayCommand(CancelScan, () => IsScanning);
+            BrowseCommand = new RelayCommand(BrowseFolder, () => !IsScanning);
+        }
+
+        public ICommand BrowseCommand { get; }
+
+        private void BrowseFolder()
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "Select Folder to Analyze",
+                InitialDirectory = Directory.Exists(SelectedPath) ? SelectedPath : "C:\\"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                SelectedPath = dialog.FolderName;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -88,12 +106,12 @@ namespace BorderlandsStorageCleaner.WinStat
             }
         }
 
-        public int Progress
+        public double Progress
         {
             get => _progress;
             set
             {
-                if (_progress != value)
+                if (Math.Abs(_progress - value) > 0.01)
                 {
                     _progress = value;
                     OnPropertyChanged(nameof(Progress));
@@ -192,12 +210,11 @@ namespace BorderlandsStorageCleaner.WinStat
             {
                 CurrentFile = p.CurrentPath;
                 
-                // Show smooth continuous progress
-                // Files: 0-80%, Dirs add variety
-                var fileProgress = Math.Min(80, (p.ScannedFiles / 100));
-                var dirProgress = Math.Min(10, (p.ScannedDirectories / 50));
-                Progress = Math.Min(95, fileProgress + dirProgress);
-
+                // Show dynamic progress since we don't know total
+                // Cycle 0-100% every 10,000 files to show activity
+                var fileProgress = (p.ScannedFiles % 10000) / 100.0;
+                Progress = fileProgress;
+                
                 Status = $"Scanned: {p.ScannedFiles:N0} files, {p.ScannedDirectories:N0} dirs, {FormatBytes(p.ScannedBytes)}";
             });
 
