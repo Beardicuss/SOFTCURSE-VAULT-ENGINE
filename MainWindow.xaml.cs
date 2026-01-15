@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 
+
 namespace BorderlandsStorageCleaner
 {
     public partial class MainWindow : Window
@@ -44,6 +45,7 @@ namespace BorderlandsStorageCleaner
         public MainWindow()
         {
             InitializeComponent();
+            Loaded += MainWindow_Loaded;
             
             // Wire up ViewModel for MVVM data binding
             DataContext = new MainWindowViewModel();
@@ -52,6 +54,41 @@ namespace BorderlandsStorageCleaner
 
             logFile = System.IO.Path.Combine(logDir, $"cleanup-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             InitializeBorderlandsUI();
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Initialize WebView2 controls
+                await loaderStandby.EnsureCoreWebView2Async();
+                await loaderActive.EnsureCoreWebView2Async();
+
+                // Disable default context menu and other browser features
+                loaderStandby.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                loaderStandby.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                loaderStandby.CoreWebView2.Settings.IsStatusBarEnabled = false;
+                
+                loaderActive.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+                loaderActive.CoreWebView2.Settings.AreDevToolsEnabled = false;
+                loaderActive.CoreWebView2.Settings.IsStatusBarEnabled = false;
+
+                // Get absolute path to resources
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string standbyPath = Path.Combine(baseDir, "Resources", "loader_standby.html");
+                string activePath = Path.Combine(baseDir, "Resources", "loader_active.html");
+
+                // Navigate to local HTML files
+                if (File.Exists(standbyPath))
+                    loaderStandby.CoreWebView2.Navigate(standbyPath);
+                
+                if (File.Exists(activePath))
+                    loaderActive.CoreWebView2.Navigate(activePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"WebView2 Init Failed: {ex.Message}");
+            }
         }
 
         private void MainWindow_SourceInitialized(object sender, EventArgs e)
@@ -185,8 +222,7 @@ namespace BorderlandsStorageCleaner
 
         private void OpenDiskAnalyzer(object sender, RoutedEventArgs e)
         {
-            var analyzerWindow = new Views.WinStatWindow();
-            analyzerWindow.Show();
+            MessageBox.Show("Disk Analyzer has been removed.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // Legacy event handlers - these delegate to the ViewModel's commands

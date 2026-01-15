@@ -1,6 +1,8 @@
 ﻿<Window x:Class="BorderlandsStorageCleaner.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:BorderlandsStorageCleaner"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="SOFTCURSE VAULT CLEANER v2.2"
         Height="750" Width="1000"
         WindowStyle="None"
@@ -31,6 +33,10 @@
 
         <!-- Semi-transparent orange for selection -->
         <SolidColorBrush x:Key="SelectionBrush" Color="#FF6600" Opacity="0.3"/>
+        
+        <!-- Visibility Converters -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <local:InvertBoolToVisibilityConverter x:Key="InvertBoolToVis"/>
 
         <!-- Tech Button Style with Animations -->
         <Style x:Key="TechButton" TargetType="Button">
@@ -282,30 +288,42 @@
                                                FontFamily="Consolas" FontSize="11"/>
                                 </StackPanel>
 
-                                <Viewbox Grid.Row="1" Margin="20" IsHitTestVisible="False">
-                                    <Canvas Width="260" Height="260">
-                                        <Ellipse Width="260" Height="260" Stroke="#FF6600" StrokeThickness="4"/>
-                                        <Path x:Name="progressRing" Stroke="#FF3300" StrokeThickness="12" 
-                                              Data="M 130,20 A 110,110 0 0 1 130,240" 
-                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round">
-                                            <Path.Effect>
-                                                <DropShadowEffect Color="#FF3300" BlurRadius="20" Opacity="0.8"/>
-                                            </Path.Effect>
-                                        </Path>
-                                        <TextBlock x:Name="txtProgress" Canvas.Left="60" Canvas.Top="100" Width="140"
-                                                   Foreground="#FF6600" FontWeight="Bold"
-                                                   FontFamily="Consolas" FontSize="12" TextAlignment="Center">
+                                <Grid Grid.Row="1" Margin="20">
+                                    <!-- STANDBY MODE: WebView2 Cube Loader -->
+                                    <wv2:WebView2 x:Name="loaderStandby" 
+                                                  DefaultBackgroundColor="Transparent"
+                                                  Visibility="{Binding IsCleaning, Converter={StaticResource InvertBoolToVis}}"/>
+                                    
+                                    <!-- ACTIVE MODE: WebView2 Boxes Loader -->
+                                    <wv2:WebView2 x:Name="loaderActive" 
+                                                  DefaultBackgroundColor="Transparent"
+                                                  Visibility="{Binding IsCleaning, Converter={StaticResource BoolToVisibility}}"/>
+                                    
+                                    <!-- Progress Text Overlay -->
+                                    <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                        <TextBlock Foreground="#FF6600" FontWeight="Bold" FontFamily="Consolas" 
+                                                   FontSize="12" TextAlignment="Center" HorizontalAlignment="Center">
                                             <TextBlock.Text>
-                                                <MultiBinding StringFormat="CLEANUP PROGRESS: {0}%">
+                                                <MultiBinding StringFormat="CLEANUP: {0}%">
                                                     <Binding Path="Progress"/>
                                                 </MultiBinding>
                                             </TextBlock.Text>
                                         </TextBlock>
-                                        <TextBlock x:Name="txtCurrentTask" Canvas.Left="40" Canvas.Top="140" Width="180"
-                                                   Text="{Binding Status}" Foreground="#CCCCCC" FontFamily="Consolas"
-                                                   FontSize="10" TextAlignment="Center"/>
-                                    </Canvas>
-                                </Viewbox>
+                                        <TextBlock Text="{Binding Status}" Foreground="#CCCCCC" FontFamily="Consolas"
+                                                   FontSize="10" TextAlignment="Center" HorizontalAlignment="Center" MaxWidth="200" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Grid>
+
+
+                                            
+
+                                            
+
+                                            
+
+                                    
+
+
 
                                 <ProgressBar x:Name="progressBar" Grid.Row="2" Height="20" Margin="20,10"
                                              Value="{Binding Progress, Mode=OneWay}" Maximum="100"
@@ -323,9 +341,7 @@
                                     <Button x:Name="btnAbort" Content="ABORT MISSION" 
                                         Style="{StaticResource TechButton}" Command="{Binding AbortCleaningCommand}" Margin="0,5"
                                         ToolTip="Cancel current operation"/>
-                                    <Button x:Name="btnDiskAnalyzer" Content="DISK ANALYZER" 
-                                        Style="{StaticResource TechButton}" Click="OpenDiskAnalyzer" Margin="0,5"
-                                        ToolTip="Advanced disk usage analyzer"/>
+
                                 </StackPanel>
                             </Grid>
                         </Border>
