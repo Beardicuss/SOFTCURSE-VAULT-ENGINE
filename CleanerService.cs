@@ -19,6 +19,9 @@ namespace BorderlandsStorageCleaner
         private long _totalSpaceFreed = 0;
         private Action<int> _progressCallback;
         private Action<string> _statusCallback;
+        private Action<string> _logCallback;
+
+        public long TotalSpaceFreed => _totalSpaceFreed;
 
         // Configuration fields
         private List<string> targetDrives = new List<string> { "D", "E", "F" };
@@ -43,12 +46,13 @@ namespace BorderlandsStorageCleaner
             _abortRequested = true;
         }
 
-        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback)
+        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback = null)
         {
             _abortRequested = false;
             _totalSpaceFreed = 0;
             _progressCallback = progressCallback;
             _statusCallback = statusCallback;
+            _logCallback = logCallback;
 
             await Task.Run(() => ExecuteCleanupProtocol());
         }
@@ -699,7 +703,10 @@ namespace BorderlandsStorageCleaner
 
         private void LogStatus(string message)
         {
-            _statusCallback?.Invoke(message);
+            if (_logCallback != null)
+                _logCallback.Invoke(message);
+            else
+                _statusCallback?.Invoke(message);
         }
     }
 }

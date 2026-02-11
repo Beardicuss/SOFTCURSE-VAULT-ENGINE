@@ -131,8 +131,12 @@ namespace BorderlandsStorageCleaner
 
             Dispatcher.Invoke(() =>
             {
-                txtLog.AppendText(logMessage + Environment.NewLine);
-                txtLog.ScrollToEnd();
+                // Forward to ViewModel so the bound LogText is updated
+                var vm = DataContext as MainWindowViewModel;
+                if (vm != null)
+                {
+                    vm.LogText += logMessage + Environment.NewLine;
+                }
             });
         }
 

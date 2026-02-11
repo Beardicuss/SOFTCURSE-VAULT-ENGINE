@@ -1,7 +1,10 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace BorderlandsStorageCleaner
 {
@@ -30,6 +33,11 @@ namespace BorderlandsStorageCleaner
         private string _spaceFreed = "Freed: 0 MB";
         private string _diskSpace = "C: 0.0GB FREE";
         private string _customPaths = "C:\\Temp\n%TEMP%\nD:\\Downloads\\Temp";
+        private string _logText = "";
+
+        // Timer for elapsed time tracking
+        private DispatcherTimer _cleanupTimer;
+        private Stopwatch _cleanupStopwatch;
 
         public MainWindowViewModel()
         {
@@ -39,6 +47,25 @@ namespace BorderlandsStorageCleaner
             StartCleaningCommand = new RelayCommand(StartCleaning, () => !IsCleaning);
             AbortCleaningCommand = new RelayCommand(AbortCleaning, () => IsCleaning);
             QuickScanCommand = new RelayCommand(QuickScan, () => !IsCleaning);
+
+            // Initialize disk space on startup
+            DiskSpace = GetDiskFreeSpace();
+
+            // Setup elapsed time timer
+            _cleanupStopwatch = new Stopwatch();
+            _cleanupTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _cleanupTimer.Tick += (s, e) =>
+            {
+                var elapsed = _cleanupStopwatch.Elapsed;
+                TimeElapsed = $"Time: {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+                // Update freed space periodically
+                long freed = _cleanerService.TotalSpaceFreed;
+                double freedMB = freed / (1024.0 * 1024.0);
+                if (freedMB >= 1024)
+                    SpaceFreed = $"Freed: {freedMB / 1024.0:F1} GB";
+                else
+                    SpaceFreed = $"Freed: {freedMB:N0} MB";
+            };
         }
 
         public bool IsCleaning
@@ -227,6 +254,19 @@ namespace BorderlandsStorageCleaner
             }
         }
 
+        public string LogText
+        {
+            get => _logText;
+            set
+            {
+                if (_logText != value)
+                {
+                    _logText = value;
+                    OnPropertyChanged(nameof(LogText));
+                }
+            }
+        }
+
         public ICommand StartCleaningCommand { get; }
         public ICommand AbortCleaningCommand { get; }
         public ICommand QuickScanCommand { get; }
@@ -235,11 +275,39 @@ namespace BorderlandsStorageCleaner
         private async void StartCleaning()
         {
             IsCleaning = true;
-            Status = "Cleaning started...";
+            Status = "INITIATING CLEANUP SEQUENCE";
             Progress = 0;
-            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, UpdateStatus);
+
+            // Read initial disk space
+            DiskSpace = GetDiskFreeSpace();
+
+            // Start elapsed timer
+            _cleanupStopwatch.Reset();
+            _cleanupStopwatch.Start();
+            _cleanupTimer.Start();
+
+            AddLogMessage("=== CLEANUP PROTOCOL INITIATED ===");
+
+            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, UpdateStatus, AddLogMessage);
+
+            // Stop timer
+            _cleanupStopwatch.Stop();
+            _cleanupTimer.Stop();
+
+            // Final stats update
+            var elapsed = _cleanupStopwatch.Elapsed;
+            TimeElapsed = $"Time: {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
+            DiskSpace = GetDiskFreeSpace();
+
+            long freed = _cleanerService.TotalSpaceFreed;
+            double freedMB = freed / (1024.0 * 1024.0);
+            if (freedMB >= 1024)
+                SpaceFreed = $"Freed: {freedMB / 1024.0:F1} GB";
+            else
+                SpaceFreed = $"Freed: {freedMB:N0} MB";
+
             IsCleaning = false;
-            Status = "Cleaning completed";
+            Status = "CLEANUP PROTOCOL COMPLETE";
         }
 
         private void AbortCleaning()
@@ -343,6 +411,30 @@ namespace BorderlandsStorageCleaner
             {
                 Status = message;
             });
+        }
+
+        private void AddLogMessage(string message)
+        {
+            string timestamp = DateTime.Now.ToString("HH:mm:ss");
+            string logLine = $"[{timestamp}] {message}";
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                LogText += logLine + Environment.NewLine;
+            });
+        }
+
+        private string GetDiskFreeSpace()
+        {
+            try
+            {
+                var drive = new DriveInfo("C");
+                double freeGB = drive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
+                return $"C: {freeGB:F1}GB FREE";
+            }
+            catch
+            {
+                return "C: --GB FREE";
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
