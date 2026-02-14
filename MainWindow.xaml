@@ -366,6 +366,14 @@
                                     <TextBlock Text=" SYSTEM LOG" Foreground="#00FFFF" FontWeight="Bold" 
                                                FontFamily="Consolas" Margin="15,10"/>
 
+                                    <!-- Background Logo -->
+                                    <Image Grid.Row="1" Source="Resources/logo-Photoroom.png" 
+                                           Stretch="Uniform" 
+                                           Opacity="0.15" 
+                                           HorizontalAlignment="Center" 
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"/>
+
                                     <ScrollViewer Grid.Row="1" Margin="10,5,10,10" VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
                                         <TextBox x:Name="txtLog" IsReadOnly="True" Background="Transparent" 

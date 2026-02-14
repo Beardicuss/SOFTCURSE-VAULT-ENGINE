@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Resource Include="Resources\softcurse_logo.png" />
+    <Resource Include="Resources\logo-Photoroom.png" />
     <Content Include="Resources\loader_standby.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
