@@ -42,15 +42,15 @@
 
         @keyframes umbral {
             0% {
-                stop-color: rgba(255, 102, 0, 0.18);
+                stop-color: rgba(0, 255, 255, 0.18);
             }
 
             50% {
-                stop-color: rgba(255, 102, 0, 0.52);
+                stop-color: rgba(0, 255, 255, 0.52);
             }
 
             100% {
-                stop-color: rgba(255, 102, 0, 0.18);
+                stop-color: rgba(0, 255, 255, 0.18);
             }
         }
 
@@ -92,56 +92,56 @@
     <svg xmlns="http://www.w3.org/2000/svg" height="200" width="200">
         <g style="order: -1;">
             <!-- Top thin lines -->
-            <polygon transform="rotate(45 100 100)" stroke-width="1" stroke="#FF6600" fill="none"
+            <polygon transform="rotate(45 100 100)" stroke-width="1" stroke="#00FFFF" fill="none"
                 points="70,70 148,50 130,130 50,150" id="bounce"></polygon>
-            <polygon transform="rotate(45 100 100)" stroke-width="1" stroke="#FF6600" fill="none"
+            <polygon transform="rotate(45 100 100)" stroke-width="1" stroke="#00FFFF" fill="none"
                 points="70,70 148,50 130,130 50,150" id="bounce2"></polygon>
 
             <!-- Main shapes -->
-            <polygon transform="rotate(45 100 100)" stroke-width="2" stroke="" fill="#252525"
+            <polygon transform="rotate(45 100 100)" stroke-width="2" stroke="" fill="#050505"
                 points="70,70 150,50 130,130 50,150"></polygon>
             <polygon stroke-width="2" stroke="" fill="url(#gradiente)" points="100,70 150,100 100,130 50,100"></polygon>
             <defs>
                 <linearGradient y2="100%" x2="10%" y1="0%" x1="0%" id="gradiente">
-                    <stop style="stop-color: #151515; stop-opacity:1" offset="20%"></stop>
-                    <stop style="stop-color: #252525; stop-opacity:1" offset="60%"></stop>
+                    <stop style="stop-color: #020202; stop-opacity:1" offset="20%"></stop>
+                    <stop style="stop-color: #050505; stop-opacity:1" offset="60%"></stop>
                 </linearGradient>
             </defs>
 
             <!-- Inner glowing parts -->
-            <polygon transform="translate(20, 31)" stroke-width="2" stroke="" fill="#CC4400"
+            <polygon transform="translate(20, 31)" stroke-width="2" stroke="" fill="#00AAAA"
                 points="80,50 80,75 80,99 40,75"></polygon>
             <polygon transform="translate(20, 31)" stroke-width="2" stroke="" fill="url(#gradiente2)"
                 points="40,-40 80,-40 80,99 40,75"></polygon>
             <defs>
                 <linearGradient y2="100%" x2="0%" y1="-17%" x1="10%" id="gradiente2">
-                    <stop style="stop-color: #FF660000; stop-opacity:1" offset="20%"></stop>
-                    <stop style="stop-color: #FF660054; stop-opacity:1" offset="100%" id="animatedStop"></stop>
+                    <stop style="stop-color: #00FFFF00; stop-opacity:1" offset="20%"></stop>
+                    <stop style="stop-color: #00FFFF54; stop-opacity:1" offset="100%" id="animatedStop"></stop>
                 </linearGradient>
             </defs>
 
-            <polygon transform="rotate(180 100 100) translate(20, 20)" stroke-width="2" stroke="" fill="#FF6600"
+            <polygon transform="rotate(180 100 100) translate(20, 20)" stroke-width="2" stroke="" fill="#00FFFF"
                 points="80,50 80,75 80,99 40,75"></polygon>
             <polygon transform="rotate(0 100 100) translate(60, 20)" stroke-width="2" stroke="" fill="url(#gradiente3)"
                 points="40,-40 80,-40 80,85 40,110.2"></polygon>
             <defs>
                 <linearGradient y2="100%" x2="10%" y1="0%" x1="0%" id="gradiente3">
-                    <stop style="stop-color: #FF660000; stop-opacity:1" offset="20%"></stop>
-                    <stop style="stop-color: #FF660054; stop-opacity:1" offset="100%" id="animatedStop"></stop>
+                    <stop style="stop-color: #00FFFF00; stop-opacity:1" offset="20%"></stop>
+                    <stop style="stop-color: #00FFFF54; stop-opacity:1" offset="100%" id="animatedStop"></stop>
                 </linearGradient>
             </defs>
 
             <!-- Particles -->
-            <polygon transform="rotate(45 100 100) translate(80, 95)" stroke-width="2" stroke="" fill="#FFCC99"
+            <polygon transform="rotate(45 100 100) translate(80, 95)" stroke-width="2" stroke="" fill="#AAFFFF"
                 points="5,0 5,5 0,5 0,0" class="particles"></polygon>
-            <polygon transform="rotate(45 100 100) translate(80, 55)" stroke-width="2" stroke="" fill="#FF9933"
+            <polygon transform="rotate(45 100 100) translate(80, 55)" stroke-width="2" stroke="" fill="#00FFFF"
                 points="6,0 6,6 0,6 0,0" class="particles"></polygon>
             <polygon transform="rotate(45 100 100) translate(70, 80)" stroke-width="2" stroke="" fill="#FFFFFF"
                 points="2,0 2,2 0,2 0,0" class="particles"></polygon>
 
             <!-- Base / Shadow polygons -->
-            <polygon stroke-width="2" stroke="" fill="#1A1A1A" points="29.5,99.8 100,142 100,172 29.5,130"></polygon>
-            <polygon transform="translate(50, 92)" stroke-width="2" stroke="" fill="#0A0A0A"
+            <polygon stroke-width="2" stroke="" fill="#050510" points="29.5,99.8 100,142 100,172 29.5,130"></polygon>
+            <polygon transform="translate(50, 92)" stroke-width="2" stroke="" fill="#020202"
                 points="50,50 120.5,8 120.5,35 50,80"></polygon>
         </g>
     </svg>

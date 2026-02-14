@@ -15,24 +15,24 @@
 
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.95">
-            <GradientStop Color="#0A0A0A" Offset="0.0"/>
-            <GradientStop Color="#151515" Offset="0.3"/>
-            <GradientStop Color="#1A0A00" Offset="0.5"/>
-            <GradientStop Color="#151515" Offset="0.7"/>
-            <GradientStop Color="#0A0A0A" Offset="1.0"/>
+            <GradientStop Color="#020202" Offset="0.0"/>
+            <GradientStop Color="#050510" Offset="0.3"/>
+            <GradientStop Color="#001010" Offset="0.5"/>
+            <GradientStop Color="#050510" Offset="0.7"/>
+            <GradientStop Color="#020202" Offset="1.0"/>
         </LinearGradientBrush>
     </Window.Background>
 
     <Window.Resources>
         <!-- Colors -->
-        <SolidColorBrush x:Key="OrangeGlow" Color="#FF6600"/>
-        <SolidColorBrush x:Key="RedGlow" Color="#FF3300"/>
-        <SolidColorBrush x:Key="DarkBg" Color="#0A0A0A"/>
-        <SolidColorBrush x:Key="PanelBg" Color="#151515"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#FF6600"/>
+        <SolidColorBrush x:Key="OrangeGlow" Color="#00FFFF"/> <!-- Cyan Accent -->
+        <SolidColorBrush x:Key="RedGlow" Color="#FF00FF"/>    <!-- Magenta Glitch -->
+        <SolidColorBrush x:Key="DarkBg" Color="#020202"/>     <!-- Deep Black -->
+        <SolidColorBrush x:Key="PanelBg" Color="#050505"/>    <!-- Lighter Black -->
+        <SolidColorBrush x:Key="BorderColor" Color="#00FFFF"/>
 
-        <!-- Semi-transparent orange for selection -->
-        <SolidColorBrush x:Key="SelectionBrush" Color="#FF6600" Opacity="0.3"/>
+        <!-- Semi-transparent cyan for selection -->
+        <SolidColorBrush x:Key="SelectionBrush" Color="#00FFFF" Opacity="0.3"/>
         
         <!-- Visibility Converters -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
@@ -40,9 +40,9 @@
 
         <!-- Tech Button Style with Animations -->
         <Style x:Key="TechButton" TargetType="Button">
-            <Setter Property="Background" Value="#1A1A1A"/>
-            <Setter Property="Foreground" Value="#FF6600"/>
-            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="Background" Value="#050505"/>
+            <Setter Property="Foreground" Value="#00FFFF"/>
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontWeight" Value="Bold"/>
@@ -56,7 +56,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}" 
                                 BorderThickness="{TemplateBinding BorderThickness}">
                             <Border.Effect>
-                                <DropShadowEffect x:Name="shadow" Color="#FF6600" BlurRadius="10" Opacity="0.3"/>
+                                <DropShadowEffect x:Name="shadow" Color="#00FFFF" BlurRadius="10" Opacity="0.3"/>
                             </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -67,10 +67,10 @@
                                         <Storyboard>
                                             <ColorAnimation Storyboard.TargetName="border" 
                                                           Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                          To="#FF6600" Duration="0:0:0.2"/>
+                                                          To="#003333" Duration="0:0:0.2"/>
                                             <ColorAnimation Storyboard.TargetName="shadow" 
                                                           Storyboard.TargetProperty="Color"
-                                                          To="#FFAA00" Duration="0:0:0.2"/>
+                                                          To="#0088FF" Duration="0:0:0.2"/>
                                             <DoubleAnimation Storyboard.TargetName="shadow" 
                                                            Storyboard.TargetProperty="BlurRadius"
                                                            To="20" Duration="0:0:0.2"/>
@@ -82,22 +82,22 @@
                                         <Storyboard>
                                             <ColorAnimation Storyboard.TargetName="border" 
                                                           Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                          To="#1A1A1A" Duration="0:0:0.2"/>
+                                                          To="#050505" Duration="0:0:0.2"/>
                                             <ColorAnimation Storyboard.TargetName="shadow" 
                                                           Storyboard.TargetProperty="Color"
-                                                          To="#FF6600" Duration="0:0:0.2"/>
+                                                          To="#00FFFF" Duration="0:0:0.2"/>
                                             <DoubleAnimation Storyboard.TargetName="shadow" 
                                                            Storyboard.TargetProperty="BlurRadius"
                                                            To="10" Duration="0:0:0.2"/>
                                         </Storyboard>
                                     </BeginStoryboard>
                                 </Trigger.ExitActions>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#FFAA00"/>
-                                <Setter Property="Foreground" Value="#000000"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#0088FF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#CC5500"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#CC5500"/>
+                                <Setter TargetName="border" Property="Background" Value="#440044"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF00FF"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="border" Property="Background" Value="#0A0A0A"/>
@@ -127,11 +127,11 @@
                             </Grid.ColumnDefinitions>
 
                             <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0"
-                                    Background="#0A0A0A" BorderBrush="#FF6600" BorderThickness="2">
+                                    Background="#020202" BorderBrush="#00FFFF" BorderThickness="2">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="#FF6600" BlurRadius="5" Opacity="0.5"/>
+                                    <DropShadowEffect Color="#00FFFF" BlurRadius="5" Opacity="0.5"/>
                                 </Border.Effect>
-                                <TextBlock x:Name="checkMark" Text="✓" Foreground="#FF6600" 
+                                <TextBlock x:Name="checkMark" Text="✓" Foreground="#00FFFF" 
                                            FontWeight="Bold" HorizontalAlignment="Center" 
                                            VerticalAlignment="Center" Visibility="Collapsed"/>
                             </Border>
@@ -143,7 +143,7 @@
                                 <Setter TargetName="checkMark" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="checkMark" Property="Foreground" Value="#FFAA00"/>
+                                <Setter TargetName="checkMark" Property="Foreground" Value="#0088FF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -153,23 +153,23 @@
 
         <!-- Tech TextBox Style -->
         <Style x:Key="TechTextBox" TargetType="TextBox">
-            <Setter Property="Background" Value="#0A0A0A"/>
-            <Setter Property="Foreground" Value="#FF6600"/>
-            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="Background" Value="#020202"/>
+            <Setter Property="Foreground" Value="#00FFFF"/>
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="5"/>
-            <Setter Property="CaretBrush" Value="#FF6600"/>
+            <Setter Property="CaretBrush" Value="#00FFFF"/>
             <Setter Property="SelectionBrush" Value="{StaticResource SelectionBrush}"/>
         </Style>
 
         <!-- ToolTip Style -->
         <Style x:Key="TechToolTip" TargetType="ToolTip">
-            <Setter Property="Background" Value="#151515"/>
-            <Setter Property="BorderBrush" Value="#FF6600"/>
+            <Setter Property="Background" Value="#050505"/>
+            <Setter Property="BorderBrush" Value="#00FFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="#FF6600"/>
+            <Setter Property="Foreground" Value="#00FFFF"/>
             <Setter Property="FontFamily" Value="Consolas"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="8,4"/>
@@ -192,7 +192,7 @@
 
             <Image.Effect>
                 <DropShadowEffect 
-                    Color="#FF6600"
+                    Color="#00FFFF"
                     BlurRadius="40"
                     ShadowDepth="0"
                     Opacity="0.8"/>
@@ -202,13 +202,13 @@
 
         <!-- Resize Borders (only visible in windowed mode) -->
         <Border x:Name="resizeBorder" Background="Transparent" 
-                BorderBrush="#FF6600" BorderThickness="3" 
+                BorderBrush="#00FFFF" BorderThickness="3" 
                 CornerRadius="0" Visibility="Visible">
 
             <!-- Inner content area -->
-            <Border Background="#CC0A0A0A" Margin="3">
+            <Border Background="#CC020202" Margin="3">
                 <Border.Effect>
-                    <DropShadowEffect Color="#FF6600" BlurRadius="40" ShadowDepth="0" Opacity="0.9"/>
+                    <DropShadowEffect Color="#00FFFF" BlurRadius="40" ShadowDepth="0" Opacity="0.9"/>
                 </Border.Effect>
 
                 <Grid>
@@ -218,7 +218,7 @@
                     </Grid.RowDefinitions>
 
                     <!-- TITLE BAR -->
-                    <Border Grid.Row="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="0,0,0,2"
+                    <Border Grid.Row="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="0,0,0,2"
                             MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -231,16 +231,16 @@
                                            FontFamily="Consolas"
                                            FontSize="20"
                                            FontWeight="Bold"
-                                           Foreground="#FF6600">
+                                           Foreground="#00FFFF">
                                     <TextBlock.Effect>
-                                        <DropShadowEffect Color="#FF6600" BlurRadius="10" ShadowDepth="0"/>
+                                        <DropShadowEffect Color="#00FFFF" BlurRadius="10" ShadowDepth="0"/>
                                     </TextBlock.Effect>
                                 </TextBlock>
                                 <TextBlock x:Name="txtAdminStatus"
                                            Text="[ADMIN PRIVILEGES: CHECKING...]"
                                            FontFamily="Consolas"
                                            FontSize="10"
-                                           Foreground="#FF3300"/>
+                                           Foreground="#FF00FF"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10">
@@ -262,9 +262,9 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- LEFT PANEL -->
-                        <Border Grid.Column="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="0,0,10,0">
+                        <Border Grid.Column="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="2" Margin="0,0,10,0">
                             <Border.Effect>
-                                <DropShadowEffect Color="#FF6600" BlurRadius="25" Opacity="0.5"/>
+                                <DropShadowEffect Color="#00FFFF" BlurRadius="25" Opacity="0.5"/>
                             </Border.Effect>
 
                             <Grid>
@@ -276,11 +276,11 @@
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0" Margin="15,15,15,5">
-                                    <TextBlock Text=" SYSTEM STATUS" Foreground="#FF6600" FontWeight="Bold" 
+                                    <TextBlock Text=" SYSTEM STATUS" Foreground="#00FFFF" FontWeight="Bold" 
                                                FontFamily="Consolas" FontSize="14"/>
                                     <TextBlock x:Name="txtDiskSpace" Text="{Binding DiskSpace}" Foreground="#00FF00" 
                                                FontFamily="Consolas" Margin="0,5"/>
-                                    <TextBlock x:Name="txtStatus" Text="{Binding Status}" Foreground="#FFAA00" 
+                                    <TextBlock x:Name="txtStatus" Text="{Binding Status}" Foreground="#0088FF" 
                                                FontFamily="Consolas"/>
                                     <TextBlock x:Name="txtTimeElapsed" Text="{Binding TimeElapsed}" Foreground="#CCCCCC" 
                                                FontFamily="Consolas" FontSize="11"/>
@@ -301,7 +301,7 @@
                                     
                                     <!-- Progress Text Overlay -->
                                     <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,10">
-                                        <TextBlock Foreground="#FF6600" FontWeight="Bold" FontFamily="Consolas" 
+                                        <TextBlock Foreground="#00FFFF" FontWeight="Bold" FontFamily="Consolas" 
                                                    FontSize="12" TextAlignment="Center" HorizontalAlignment="Center">
                                             <TextBlock.Text>
                                                 <MultiBinding StringFormat="CLEANUP: {0}%">
@@ -327,8 +327,8 @@
 
                                 <ProgressBar x:Name="progressBar" Grid.Row="2" Height="20" Margin="20,10"
                                              Value="{Binding Progress, Mode=OneWay}" Maximum="100"
-                                             Foreground="#FF6600" Background="#0A0A0A" 
-                                             BorderBrush="#FF6600" BorderThickness="2"
+                                             Foreground="#00FFFF" Background="#020202" 
+                                             BorderBrush="#00FFFF" BorderThickness="2"
                                              ToolTip="Overall cleanup progress"/>
 
                                 <StackPanel Grid.Row="3" Margin="20">
@@ -353,9 +353,9 @@
                                 <RowDefinition Height="220"/>
                             </Grid.RowDefinitions>
 
-                            <Border Grid.Row="0" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="10,0,0,10">
+                            <Border Grid.Row="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="2" Margin="10,0,0,10">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="#FF6600" BlurRadius="15" Opacity="0.4"/>
+                                    <DropShadowEffect Color="#00FFFF" BlurRadius="15" Opacity="0.4"/>
                                 </Border.Effect>
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -363,7 +363,7 @@
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
-                                    <TextBlock Text=" SYSTEM LOG" Foreground="#FF6600" FontWeight="Bold" 
+                                    <TextBlock Text=" SYSTEM LOG" Foreground="#00FFFF" FontWeight="Bold" 
                                                FontFamily="Consolas" Margin="15,10"/>
 
                                     <ScrollViewer Grid.Row="1" Margin="10,5,10,10" VerticalScrollBarVisibility="Auto"
@@ -376,13 +376,13 @@
                                 </Grid>
                             </Border>
 
-                            <Border Grid.Row="1" Background="#151515" BorderBrush="#FF6600" BorderThickness="2" Margin="10,0,0,0">
+                            <Border Grid.Row="1" Background="#050505" BorderBrush="#00FFFF" BorderThickness="2" Margin="10,0,0,0">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="#FF6600" BlurRadius="15" Opacity="0.4"/>
+                                    <DropShadowEffect Color="#00FFFF" BlurRadius="15" Opacity="0.4"/>
                                 </Border.Effect>
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                                     <StackPanel Margin="15">
-                                        <TextBlock Text=" CONFIGURATION" Foreground="#FF6600" FontWeight="Bold" 
+                                        <TextBlock Text=" CONFIGURATION" Foreground="#00FFFF" FontWeight="Bold" 
                                                    FontFamily="Consolas" FontSize="14" Margin="0,0,0,10"/>
 
                                         <CheckBox x:Name="chkTempFiles" Content="Delete temporary files" 
