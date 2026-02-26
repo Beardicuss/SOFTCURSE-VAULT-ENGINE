@@ -3,12 +3,13 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Win11 Auto-Clean</AssemblyName>
     <RootNamespace>BorderlandsStorageCleaner</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <NoWarn>CA1416</NoWarn><!-- Suppress platform compatibility warnings for Windows-only app -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationIcon>Resources\logo.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\vault.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

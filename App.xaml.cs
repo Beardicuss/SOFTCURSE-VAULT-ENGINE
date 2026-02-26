@@ -6,7 +6,9 @@ namespace BorderlandsStorageCleaner
 {
     public partial class App : Application
     {
-        private readonly string logDir = @"D:\VaultHunterLogs";
+        private readonly string logDir = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "SoftcurseVaultCleaner", "Logs");
         
         protected override void OnStartup(StartupEventArgs e)
         {

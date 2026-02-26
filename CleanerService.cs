@@ -4,11 +4,27 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace BorderlandsStorageCleaner
 {
+    /// <summary>
+    /// Configuration passed from ViewModel checkboxes to control which cleanup tasks run.
+    /// </summary>
+    public class CleanupConfig
+    {
+        public bool CleanTempFiles { get; set; } = true;
+        public bool CleanCache { get; set; } = true;
+        public bool CleanLogs { get; set; } = true;
+        public bool CleanRecycleBin { get; set; } = false;
+        public bool CleanPrefetch { get; set; } = true;
+        public bool DeepScanMode { get; set; } = false;
+        public bool CreateBackup { get; set; } = false;
+        public List<string> CustomPaths { get; set; } = new List<string>();
+    }
+
     /// <summary>
     /// Service class responsible for executing system cleanup operations.
     /// Handles file deletion, cache clearing, registry modifications, and service management.
@@ -23,16 +39,10 @@ namespace BorderlandsStorageCleaner
 
         public long TotalSpaceFreed => _totalSpaceFreed;
 
-        // Configuration fields
+        // Configuration fields (updated from UI via CleanupConfig)
         private List<string> targetDrives = new List<string> { "D", "E", "F" };
         private int requiredFreeGB = 20;
         private int pagefileMarginGB = 5;
-        private bool useDISMResetBase = true;
-        private bool deleteBrowserCache = true;
-        private bool cleanDriverCaches = true;
-        private bool removeOrphanedInstallers = true;
-        private bool cleanThumbnails = true;
-        private bool rebuildFontCache = true;
 
         // DLL imports
         [System.Runtime.InteropServices.DllImport("Shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
@@ -46,7 +56,7 @@ namespace BorderlandsStorageCleaner
             _abortRequested = true;
         }
 
-        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback = null)
+        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback, CleanupConfig config)
         {
             _abortRequested = false;
             _totalSpaceFreed = 0;
@@ -54,10 +64,10 @@ namespace BorderlandsStorageCleaner
             _statusCallback = statusCallback;
             _logCallback = logCallback;
 
-            await Task.Run(() => ExecuteCleanupProtocol());
+            await Task.Run(() => ExecuteCleanupProtocol(config));
         }
 
-        private void ExecuteCleanupProtocol()
+        private void ExecuteCleanupProtocol(CleanupConfig config)
         {
             LogStatus("=== INITIATING CLEANUP PROTOCOL ===");
             UpdateStatus("INITIATING CLEANUP SEQUENCE");
@@ -72,38 +82,60 @@ namespace BorderlandsStorageCleaner
                 LogStatus("WARNING: No suitable target drive found. Pagefile/restore relocation skipped.");
             }
 
-            var tasks = new List<Action>
+            // Build task list based on config
+            var tasks = new List<(string Name, Action Task)>();
+
+            if (config.CleanRecycleBin)
+                tasks.Add(("Recycle Bin Incineration", CleanRecycleBin));
+
+            if (config.CleanTempFiles)
+                tasks.Add(("TEMP Files Purge", CleanTempFolders));
+
+            if (config.CleanCache)
             {
-                () => ExecuteTask("Recycle Bin Incineration", CleanRecycleBin, 4),
-                () => ExecuteTask("TEMP Files Purge", CleanTempFolders, 8),
-                () => ExecuteTask("PYTHON PIP Cache Purge", CleanPipCache, 12),
-                () => ExecuteTask("Thumbnail Cache Clean", CleanThumbnailCache, 16),
-                () => ExecuteTask("Windows Update Cache Flush", CleanWindowsUpdateCache, 20),
-                () => ExecuteTask("UWP App Cache Clean", CleanMicrosoftStoreCache, 24),
-                () => ExecuteTask("NVIDIA Cache Clean", CleanNVIDIACache, 28),
-                () => ExecuteTask("Unreal Engine Purge", CleanUnrealEngineCache, 32),
-                () => ExecuteTask("Android SDK Clean", CleanAndroidSDK, 36),
-                () => ExecuteTask("Event Log Scrub", CleanEventLogs, 40),
-                () => ExecuteTask("Browser Data Wipe", CleanBrowserCaches, 44),
-                () => ExecuteTask("Font Cache Rebuild", RebuildFontCache, 48),
-                () => ExecuteTask("DISM Cleanup", RunDISMCleanup, 52),
-                () => ExecuteTask("Driver Cache Purge", CleanDriverCachesTask, 56),
-                () => ExecuteTask("Orphaned Installer Removal", RemoveOrphanedInstallersTask, 60)
-            };
+                tasks.Add(("PYTHON PIP Cache Purge", CleanPipCache));
+                tasks.Add(("Thumbnail Cache Clean", CleanThumbnailCache));
+                tasks.Add(("Windows Update Cache Flush", CleanWindowsUpdateCache));
+                tasks.Add(("UWP App Cache Clean", CleanMicrosoftStoreCache));
+                tasks.Add(("Driver Cache Purge", CleanDriverCachesTask));
+                tasks.Add(("Unreal Engine Purge", CleanUnrealEngineCache));
+                tasks.Add(("Android SDK Clean", CleanAndroidSDK));
+                tasks.Add(("Browser Data Wipe", CleanBrowserCaches));
+            }
 
-            int baseProgress = 60;
-            int finalProgress = 95;
-            int progressIncrement = tasks.Count > 1 ? (finalProgress - baseProgress) / (tasks.Count - 1) : 0;
+            if (config.CleanLogs)
+                tasks.Add(("Event Log Scrub", CleanEventLogs));
 
-            for (int i = 0; i < tasks.Count; i++)
+            if (config.CleanPrefetch)
+                tasks.Add(("Font Cache Rebuild", RebuildFontCache));
+
+            if (config.DeepScanMode)
+            {
+                tasks.Add(("DISM Cleanup", RunDISMCleanup));
+                tasks.Add(("Orphaned Installer Removal", RemoveOrphanedInstallersTask));
+            }
+
+            // Custom paths from user
+            if (config.CustomPaths != null && config.CustomPaths.Count > 0)
+            {
+                tasks.Add(("Custom Folder Cleanup", () => CleanCustomPaths(config.CustomPaths)));
+            }
+
+            // Execute tasks with evenly distributed progress (5% to 95%)
+            int totalTasks = tasks.Count;
+            for (int i = 0; i < totalTasks; i++)
             {
                 if (_abortRequested) break;
 
-                int currentProgress = baseProgress + (i * progressIncrement);
-                tasks[i].Invoke();
+                int progress = totalTasks > 1
+                    ? 5 + (int)((i / (double)(totalTasks - 1)) * 90)
+                    : 50;
+
+                ExecuteTask(tasks[i].Name, tasks[i].Task, progress);
             }
 
-            if (!_abortRequested && selectedDrive != null)
+            // Pagefile and System Restore (only with deep scan + confirmation already in UI)
+            if (!_abortRequested && selectedDrive != null && config.DeepScanMode)
             {
                 ExecuteTask("Pagefile Configuration", () => ConfigurePagefile(selectedDrive.DriveLetter), 98);
                 ExecuteTask("System Restore Relocation", () => MoveSystemRestore(selectedDrive.DriveLetter), 99);
@@ -111,8 +143,9 @@ namespace BorderlandsStorageCleaner
 
             if (!_abortRequested)
             {
+                double freedMB = _totalSpaceFreed / (1024.0 * 1024.0);
                 LogStatus("=== CLEANUP PROTOCOL COMPLETE ===");
-                LogStatus($"SYSTEM: All targets eliminated successfully - Freed {_totalSpaceFreed / (1024 * 1024):N0} MB");
+                LogStatus($"SYSTEM: All targets eliminated successfully - Freed {freedMB:N0} MB");
                 UpdateStatus("CLEANUP PROTOCOL SUCCESSFUL");
                 UpdateProgress(100);
             }
@@ -128,6 +161,7 @@ namespace BorderlandsStorageCleaner
             if (_abortRequested) return;
 
             UpdateProgress(progress);
+            UpdateStatus($"EXECUTING: {taskName}");
             LogStatus($"EXECUTING: {taskName}");
             try
             {
@@ -149,8 +183,7 @@ namespace BorderlandsStorageCleaner
                 if (result == 0)
                     LogStatus("RECYCLE BIN: Emptied successfully");
                 else
-                    LogStatus("RECYCLE BIN: Cleanup completed");
-                _totalSpaceFreed += 100 * 1024 * 1024;
+                    LogStatus("RECYCLE BIN: Cleanup completed (may have been empty)");
             }
             catch (Exception ex)
             {
@@ -174,7 +207,6 @@ namespace BorderlandsStorageCleaner
                     pipCachePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "pip", "Cache");
                 }
                 CleanDirectory(pipCachePath, "Python (pip) Cache");
-                _totalSpaceFreed += 50 * 1024 * 1024;
             }
             catch (Exception ex) { LogStatus($"Pip cache cleanup failed: {ex.Message}"); }
         }
@@ -183,14 +215,11 @@ namespace BorderlandsStorageCleaner
         {
             try
             {
-                // RunCommand("wsreset.exe", ""); // Disabled: Forces Store app to open
-                LogStatus("MICROSOFT STORE: Skipping reset command to prevent app launch.");
+                LogStatus("MICROSOFT STORE: Cleaning UWP temp caches directly.");
 
                 string appPackageTempPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
                 string tempStatePath = Path.Combine(appPackageTempPath, "TempState");
                 CleanDirectory(tempStatePath, "UWP App Temporary State");
-
-                _totalSpaceFreed += 150 * 1024 * 1024;
             }
             catch (Exception ex) { LogStatus($"Microsoft Store cache failed: {ex.Message}"); }
         }
@@ -204,11 +233,6 @@ namespace BorderlandsStorageCleaner
                 StartService("wuauserv");
             }
             catch (Exception ex) { LogStatus($"Windows Update cache failed: {ex.Message}"); }
-        }
-
-        private void CleanNVIDIACache()
-        {
-            CleanDirectory(@"C:\ProgramData\NVIDIA Corporation\Downloader", "NVIDIA Cache");
         }
 
         private void CleanUnrealEngineCache()
@@ -238,7 +262,7 @@ namespace BorderlandsStorageCleaner
                     process.Start();
 
                     string output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit();
+                    process.WaitForExit(15000);
 
                     foreach (string log in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
                     {
@@ -256,12 +280,11 @@ namespace BorderlandsStorageCleaner
                                 clearProcess.StartInfo.CreateNoWindow = true;
                                 clearProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                                 clearProcess.Start();
-                                if (!clearProcess.WaitForExit(2000)) // Reduced to 2s timeout per log
+                                if (!clearProcess.WaitForExit(2000))
                                 {
                                     try { clearProcess.Kill(); } catch { }
                                 }
                             }
-                            // Yield to prevent CPU hogging
                             Thread.Sleep(5);
                         }
                         catch (Exception ex)
@@ -270,15 +293,12 @@ namespace BorderlandsStorageCleaner
                         }
                     }
                 }
-                _totalSpaceFreed += 50 * 1024 * 1024;
             }
             catch (Exception ex) { LogStatus($"Event logs failed: {ex.Message}"); }
         }
 
         private void CleanBrowserCaches()
         {
-            if (!deleteBrowserCache) return;
-
             var browserCaches = new[]
             {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "User Data", "Default", "Cache"),
@@ -303,7 +323,6 @@ namespace BorderlandsStorageCleaner
                     }
                 }
             }
-            _totalSpaceFreed += 200 * 1024 * 1024;
         }
 
         private void RunDISMCleanup()
@@ -311,19 +330,13 @@ namespace BorderlandsStorageCleaner
             try
             {
                 RunCommand("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup");
-                if (useDISMResetBase)
-                {
-                    RunCommand("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup /ResetBase");
-                }
-                _totalSpaceFreed += 500 * 1024 * 1024;
+                RunCommand("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup /ResetBase");
             }
             catch (Exception ex) { LogStatus($"DISM failed: {ex.Message}"); }
         }
 
         private void CleanDriverCachesTask()
         {
-            if (!cleanDriverCaches) return;
-
             var paths = new[]
             {
                 @"C:\ProgramData\NVIDIA Corporation\Downloader",
@@ -337,19 +350,15 @@ namespace BorderlandsStorageCleaner
             {
                 CleanDirectory(path, $"Driver cache: {Path.GetFileName(path)}");
             }
-            _totalSpaceFreed += 300 * 1024 * 1024;
         }
 
         private void RemoveOrphanedInstallersTask()
         {
-            if (!removeOrphanedInstallers) return;
             RemoveOrphanedInstallers(@"C:\Windows\Installer");
         }
 
         private void CleanThumbnailCache()
         {
-            if (!cleanThumbnails) return;
-
             LogStatus("Cleaning thumbnail cache...");
             try
             {
@@ -358,7 +367,6 @@ namespace BorderlandsStorageCleaner
                 {
                     CleanDirectory(thumbCache, "Thumbnail Cache");
                     LogStatus("Thumbnail cache cleaned successfully");
-                    _totalSpaceFreed += 50 * 1024 * 1024;
                 }
             }
             catch (Exception ex) { LogStatus($"Thumbnail cache cleanup failed: {ex.Message}"); }
@@ -366,8 +374,6 @@ namespace BorderlandsStorageCleaner
 
         private void RebuildFontCache()
         {
-            if (!rebuildFontCache) return;
-
             LogStatus("Rebuilding font cache...");
             try
             {
@@ -382,25 +388,39 @@ namespace BorderlandsStorageCleaner
 
                 StartService("FontCache");
                 LogStatus("Font cache rebuilt successfully using service");
-                _totalSpaceFreed += 10 * 1024 * 1024;
             }
             catch (Exception ex)
             {
                 LogStatus($"Font cache rebuild failed: {ex.Message}");
+                // Note: SFC removed — it's a full system scan, not a font cache tool
+                LogStatus("Font cache service unavailable. Cache will rebuild on next reboot.");
+            }
+        }
 
-                try
+        private void CleanCustomPaths(List<string> paths)
+        {
+            foreach (string path in paths)
+            {
+                if (_abortRequested) return;
+
+                string expandedPath = Environment.ExpandEnvironmentVariables(path.Trim());
+                if (Directory.Exists(expandedPath))
                 {
-                    RunCommand("sfc", "/scannow");
-                    LogStatus("Used SFC as alternative font cache method");
+                    CleanDirectory(expandedPath, $"Custom: {expandedPath}");
                 }
-                catch (Exception ex2)
+                else
                 {
-                    LogStatus($"Fallback method also failed: {ex2.Message}");
+                    LogStatus($"SKIPPED: Custom path not found - {expandedPath}");
                 }
             }
         }
 
         // Helper methods
+
+        /// <summary>
+        /// Cleans a directory by deleting all files and subdirectories.
+        /// Tracks actual bytes freed by measuring file sizes before deletion.
+        /// </summary>
         private void CleanDirectory(string path, string description)
         {
             if (!Directory.Exists(path))
@@ -415,44 +435,63 @@ namespace BorderlandsStorageCleaner
             {
                 int filesDeleted = 0;
                 int dirsDeleted = 0;
+                long bytesFreed = 0;
 
-                // Use EnumerateFiles to reduce memory usage (don't load all into memory at once)
+                // Use EnumerateFiles to reduce memory usage
                 foreach (string file in Directory.EnumerateFiles(path))
                 {
                     if (_abortRequested) return;
-                    
+
                     try
                     {
+                        long fileSize = new FileInfo(file).Length;
                         File.Delete(file);
                         filesDeleted++;
+                        bytesFreed += fileSize;
                     }
                     catch { }
-                    
-                    // Yield every 100 files to keep UI responsive and lower CPU priority impact
+
                     if (filesDeleted % 100 == 0) Thread.Sleep(1);
                 }
 
-                // Use EnumerateDirectories
                 foreach (string dir in Directory.EnumerateDirectories(path))
                 {
                     if (_abortRequested) return;
 
                     try
                     {
+                        long dirSize = CalculateDirectorySize(dir);
                         Directory.Delete(dir, true);
                         dirsDeleted++;
+                        bytesFreed += dirSize;
                     }
                     catch { }
-                    
+
                     if (dirsDeleted % 10 == 0) Thread.Sleep(1);
                 }
 
-                LogStatus($"CLEANED: {description} ({filesDeleted} files, {dirsDeleted} folders)");
+                Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
+                double freedMB = bytesFreed / (1024.0 * 1024.0);
+                LogStatus($"CLEANED: {description} ({filesDeleted} files, {dirsDeleted} folders, {freedMB:N1} MB)");
             }
             catch (Exception ex)
             {
                 LogStatus($"FAILED: {description} - {ex.Message}");
             }
+        }
+
+        private long CalculateDirectorySize(string path)
+        {
+            long size = 0;
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                {
+                    try { size += new FileInfo(file).Length; } catch { }
+                }
+            }
+            catch { }
+            return size;
         }
 
         private void ConfigurePagefile(string driveLetter)
@@ -510,38 +549,29 @@ namespace BorderlandsStorageCleaner
             }
 
             int removedCount = 0;
+            long bytesFreed = 0;
             try
             {
-                foreach (string file in Directory.EnumerateFiles(installerDir, "*.msi"))
+                var patterns = new[] { "*.msi", "*.msp" };
+                foreach (string pattern in patterns)
                 {
-                    if (_abortRequested) return;
-                    try
+                    foreach (string file in Directory.EnumerateFiles(installerDir, pattern))
                     {
-                        FileInfo fi = new FileInfo(file);
-                        if (fi.CreationTime < DateTime.Now.AddMonths(-6))
+                        if (_abortRequested) return;
+                        try
                         {
-                            File.Delete(file);
-                            removedCount++;
-                            LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
+                            FileInfo fi = new FileInfo(file);
+                            if (fi.CreationTime < DateTime.Now.AddMonths(-6))
+                            {
+                                long size = fi.Length;
+                                File.Delete(file);
+                                removedCount++;
+                                bytesFreed += size;
+                                LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
-                }
-
-                foreach (string file in Directory.EnumerateFiles(installerDir, "*.msp"))
-                {
-                    if (_abortRequested) return;
-                    try
-                    {
-                        FileInfo fi = new FileInfo(file);
-                        if (fi.CreationTime < DateTime.Now.AddMonths(-6))
-                        {
-                            File.Delete(file);
-                            removedCount++;
-                            LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
-                        }
-                    }
-                    catch { }
                 }
             }
             catch (Exception ex)
@@ -549,38 +579,47 @@ namespace BorderlandsStorageCleaner
                 LogStatus($"ORPHANED CLEANUP ERROR: {ex.Message}");
             }
 
-            LogStatus($"ORPHANED INSTALLERS: Removed {removedCount} files");
-            _totalSpaceFreed += removedCount * 10 * 1024 * 1024;
+            Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
+            double freedMB = bytesFreed / (1024.0 * 1024.0);
+            LogStatus($"ORPHANED INSTALLERS: Removed {removedCount} files ({freedMB:N1} MB)");
         }
 
+        /// <summary>
+        /// Runs an external command with proper async output handling to prevent deadlocks.
+        /// </summary>
         private void RunCommand(string fileName, string arguments)
         {
             try
             {
                 using (Process process = new Process())
                 {
+                    var stdout = new StringBuilder();
+                    var stderr = new StringBuilder();
+
                     process.StartInfo.FileName = fileName;
                     process.StartInfo.Arguments = arguments;
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = true;
                     process.StartInfo.RedirectStandardOutput = true;
                     process.StartInfo.RedirectStandardError = true;
+
+                    process.OutputDataReceived += (s, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
+                    process.ErrorDataReceived += (s, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
+
                     process.Start();
-                    
-                    // Add timeout to prevent hangs (e.g. wsreset.exe can hang)
-                    if (!process.WaitForExit(30000)) // 30 seconds timeout
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+
+                    if (!process.WaitForExit(60000)) // 60 seconds timeout
                     {
                         try { process.Kill(); } catch { }
                         LogStatus($"COMMAND TIMEOUT: {fileName} {arguments}");
                         return;
                     }
 
-                    string output = process.StandardOutput.ReadToEnd();
-                    string error = process.StandardError.ReadToEnd();
-
-                    if (!string.IsNullOrEmpty(error) && process.ExitCode != 0)
+                    if (stderr.Length > 0 && process.ExitCode != 0)
                     {
-                        LogStatus($"COMMAND ERROR: {fileName} {arguments} - {error}");
+                        LogStatus($"COMMAND ERROR: {fileName} - {stderr.ToString().Trim()}");
                     }
                 }
             }
@@ -601,7 +640,11 @@ namespace BorderlandsStorageCleaner
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = true;
                     process.Start();
-                    process.WaitForExit();
+                    if (!process.WaitForExit(15000))
+                    {
+                        try { process.Kill(); } catch { }
+                        LogStatus($"SERVICE STOP TIMEOUT: {serviceName}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -621,7 +664,11 @@ namespace BorderlandsStorageCleaner
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = true;
                     process.Start();
-                    process.WaitForExit();
+                    if (!process.WaitForExit(15000))
+                    {
+                        try { process.Kill(); } catch { }
+                        LogStatus($"SERVICE START TIMEOUT: {serviceName}");
+                    }
                 }
             }
             catch (Exception ex)

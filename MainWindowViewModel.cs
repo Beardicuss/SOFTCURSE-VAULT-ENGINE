@@ -1,7 +1,9 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -32,8 +34,11 @@ namespace BorderlandsStorageCleaner
         private string _timeElapsed = "Time: 00:00";
         private string _spaceFreed = "Freed: 0 MB";
         private string _diskSpace = "C: 0.0GB FREE";
-        private string _customPaths = "C:\\Temp\n%TEMP%\nD:\\Downloads\\Temp";
         private string _logText = "";
+
+        // Custom folder list (replaces old string CustomPaths)
+        private ObservableCollection<string> _customFolders;
+        private string _selectedCustomFolder;
 
         // Timer for elapsed time tracking
         private DispatcherTimer _cleanupTimer;
@@ -43,10 +48,12 @@ namespace BorderlandsStorageCleaner
         {
             _cleanerService = new CleanerService();
             _status = "STANDBY";
-            
+            _customFolders = new ObservableCollection<string>();
+
             StartCleaningCommand = new RelayCommand(StartCleaning, () => !IsCleaning);
             AbortCleaningCommand = new RelayCommand(AbortCleaning, () => IsCleaning);
             QuickScanCommand = new RelayCommand(QuickScan, () => !IsCleaning);
+            RemoveFolderCommand = new RelayCommand(RemoveSelectedFolder, () => SelectedCustomFolder != null);
 
             // Initialize disk space on startup
             DiskSpace = GetDiskFreeSpace();
@@ -58,13 +65,17 @@ namespace BorderlandsStorageCleaner
             {
                 var elapsed = _cleanupStopwatch.Elapsed;
                 TimeElapsed = $"Time: {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
-                // Update freed space periodically
+
+                // Update freed space periodically from actual tracked bytes
                 long freed = _cleanerService.TotalSpaceFreed;
                 double freedMB = freed / (1024.0 * 1024.0);
                 if (freedMB >= 1024)
                     SpaceFreed = $"Freed: {freedMB / 1024.0:F1} GB";
                 else
                     SpaceFreed = $"Freed: {freedMB:N0} MB";
+
+                // Refresh disk space during cleanup
+                DiskSpace = GetDiskFreeSpace();
             };
         }
 
@@ -114,155 +125,86 @@ namespace BorderlandsStorageCleaner
         public bool CleanTempFiles
         {
             get => _cleanTempFiles;
-            set
-            {
-                if (_cleanTempFiles != value)
-                {
-                    _cleanTempFiles = value;
-                    OnPropertyChanged(nameof(CleanTempFiles));
-                }
-            }
+            set { if (_cleanTempFiles != value) { _cleanTempFiles = value; OnPropertyChanged(nameof(CleanTempFiles)); } }
         }
 
         public bool CleanCache
         {
             get => _cleanCache;
-            set
-            {
-                if (_cleanCache != value)
-                {
-                    _cleanCache = value;
-                    OnPropertyChanged(nameof(CleanCache));
-                }
-            }
+            set { if (_cleanCache != value) { _cleanCache = value; OnPropertyChanged(nameof(CleanCache)); } }
         }
 
         public bool CleanLogs
         {
             get => _cleanLogs;
-            set
-            {
-                if (_cleanLogs != value)
-                {
-                    _cleanLogs = value;
-                    OnPropertyChanged(nameof(CleanLogs));
-                }
-            }
+            set { if (_cleanLogs != value) { _cleanLogs = value; OnPropertyChanged(nameof(CleanLogs)); } }
         }
 
         public bool CleanRecycleBin
         {
             get => _cleanRecycleBin;
-            set
-            {
-                if (_cleanRecycleBin != value)
-                {
-                    _cleanRecycleBin = value;
-                    OnPropertyChanged(nameof(CleanRecycleBin));
-                }
-            }
+            set { if (_cleanRecycleBin != value) { _cleanRecycleBin = value; OnPropertyChanged(nameof(CleanRecycleBin)); } }
         }
 
         public bool CleanPrefetch
         {
             get => _cleanPrefetch;
-            set
-            {
-                if (_cleanPrefetch != value)
-                {
-                    _cleanPrefetch = value;
-                    OnPropertyChanged(nameof(CleanPrefetch));
-                }
-            }
+            set { if (_cleanPrefetch != value) { _cleanPrefetch = value; OnPropertyChanged(nameof(CleanPrefetch)); } }
         }
 
         public bool DeepScanMode
         {
             get => _deepScanMode;
-            set
-            {
-                if (_deepScanMode != value)
-                {
-                    _deepScanMode = value;
-                    OnPropertyChanged(nameof(DeepScanMode));
-                }
-            }
+            set { if (_deepScanMode != value) { _deepScanMode = value; OnPropertyChanged(nameof(DeepScanMode)); } }
         }
 
         public bool CreateBackup
         {
             get => _createBackup;
-            set
-            {
-                if (_createBackup != value)
-                {
-                    _createBackup = value;
-                    OnPropertyChanged(nameof(CreateBackup));
-                }
-            }
+            set { if (_createBackup != value) { _createBackup = value; OnPropertyChanged(nameof(CreateBackup)); } }
         }
 
         public string TimeElapsed
         {
             get => _timeElapsed;
-            set
-            {
-                if (_timeElapsed != value)
-                {
-                    _timeElapsed = value;
-                    OnPropertyChanged(nameof(TimeElapsed));
-                }
-            }
+            set { if (_timeElapsed != value) { _timeElapsed = value; OnPropertyChanged(nameof(TimeElapsed)); } }
         }
 
         public string SpaceFreed
         {
             get => _spaceFreed;
-            set
-            {
-                if (_spaceFreed != value)
-                {
-                    _spaceFreed = value;
-                    OnPropertyChanged(nameof(SpaceFreed));
-                }
-            }
+            set { if (_spaceFreed != value) { _spaceFreed = value; OnPropertyChanged(nameof(SpaceFreed)); } }
         }
 
         public string DiskSpace
         {
             get => _diskSpace;
-            set
-            {
-                if (_diskSpace != value)
-                {
-                    _diskSpace = value;
-                    OnPropertyChanged(nameof(DiskSpace));
-                }
-            }
-        }
-
-        public string CustomPaths
-        {
-            get => _customPaths;
-            set
-            {
-                if (_customPaths != value)
-                {
-                    _customPaths = value;
-                    OnPropertyChanged(nameof(CustomPaths));
-                }
-            }
+            set { if (_diskSpace != value) { _diskSpace = value; OnPropertyChanged(nameof(DiskSpace)); } }
         }
 
         public string LogText
         {
             get => _logText;
+            set { if (_logText != value) { _logText = value; OnPropertyChanged(nameof(LogText)); } }
+        }
+
+        // Custom folder list for Task 2
+        public ObservableCollection<string> CustomFolders
+        {
+            get => _customFolders;
+            set { if (_customFolders != value) { _customFolders = value; OnPropertyChanged(nameof(CustomFolders)); } }
+        }
+
+        public string SelectedCustomFolder
+        {
+            get => _selectedCustomFolder;
             set
             {
-                if (_logText != value)
+                if (_selectedCustomFolder != value)
                 {
-                    _logText = value;
-                    OnPropertyChanged(nameof(LogText));
+                    _selectedCustomFolder = value;
+                    OnPropertyChanged(nameof(SelectedCustomFolder));
+                    ((RelayCommand)RemoveFolderCommand).RaiseCanExecuteChanged();
                 }
             }
         }
@@ -270,7 +212,45 @@ namespace BorderlandsStorageCleaner
         public ICommand StartCleaningCommand { get; }
         public ICommand AbortCleaningCommand { get; }
         public ICommand QuickScanCommand { get; }
+        public ICommand RemoveFolderCommand { get; }
 
+        /// <summary>
+        /// Adds a folder path to the custom folders list (called from code-behind after folder dialog).
+        /// </summary>
+        public void AddCustomFolder(string folderPath)
+        {
+            if (!string.IsNullOrWhiteSpace(folderPath) && !CustomFolders.Contains(folderPath))
+            {
+                CustomFolders.Add(folderPath);
+            }
+        }
+
+        private void RemoveSelectedFolder()
+        {
+            if (SelectedCustomFolder != null && CustomFolders.Contains(SelectedCustomFolder))
+            {
+                CustomFolders.Remove(SelectedCustomFolder);
+                SelectedCustomFolder = null;
+            }
+        }
+
+        /// <summary>
+        /// Builds a CleanupConfig from the current checkbox states and custom folders.
+        /// </summary>
+        private CleanupConfig BuildConfig()
+        {
+            return new CleanupConfig
+            {
+                CleanTempFiles = CleanTempFiles,
+                CleanCache = CleanCache,
+                CleanLogs = CleanLogs,
+                CleanRecycleBin = CleanRecycleBin,
+                CleanPrefetch = CleanPrefetch,
+                DeepScanMode = DeepScanMode,
+                CreateBackup = CreateBackup,
+                CustomPaths = CustomFolders.ToList()
+            };
+        }
 
         private async void StartCleaning()
         {
@@ -278,23 +258,20 @@ namespace BorderlandsStorageCleaner
             Status = "INITIATING CLEANUP SEQUENCE";
             Progress = 0;
 
-            // Read initial disk space
             DiskSpace = GetDiskFreeSpace();
 
-            // Start elapsed timer
             _cleanupStopwatch.Reset();
             _cleanupStopwatch.Start();
             _cleanupTimer.Start();
 
             AddLogMessage("=== CLEANUP PROTOCOL INITIATED ===");
 
-            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, UpdateStatus, AddLogMessage);
+            var config = BuildConfig();
+            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, UpdateStatus, AddLogMessage, config);
 
-            // Stop timer
             _cleanupStopwatch.Stop();
             _cleanupTimer.Stop();
 
-            // Final stats update
             var elapsed = _cleanupStopwatch.Elapsed;
             TimeElapsed = $"Time: {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
             DiskSpace = GetDiskFreeSpace();
@@ -321,73 +298,62 @@ namespace BorderlandsStorageCleaner
             IsCleaning = true;
             Status = "SCANNING SYSTEM...";
             Progress = 0;
-            
+
             await Task.Run(() =>
             {
                 long potentialSpace = 0;
-                
-                // Scan temp folders
+
                 UpdateProgress(20);
                 UpdateStatus("Scanning TEMP folders...");
-                potentialSpace += CalculateDirectorySize(System.IO.Path.GetTempPath());
+                potentialSpace += CalculateDirectorySize(Path.GetTempPath());
                 potentialSpace += CalculateDirectorySize(@"C:\Windows\Temp");
-                
-                // Scan browser caches
+
                 UpdateProgress(40);
                 UpdateStatus("Scanning browser caches...");
                 var browserPaths = new[]
                 {
-                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "User Data", "Default", "Cache"),
-                    System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data", "Default", "Cache")
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "User Data", "Default", "Cache"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data", "Default", "Cache")
                 };
                 foreach (var path in browserPaths)
                 {
                     potentialSpace += CalculateDirectorySize(path);
                 }
-                
-                // Scan Windows Update cache
+
                 UpdateProgress(60);
                 UpdateStatus("Scanning Windows Update cache...");
                 potentialSpace += CalculateDirectorySize(@"C:\Windows\SoftwareDistribution\Download");
-                
-                // Scan thumbnail cache
+
                 UpdateProgress(80);
                 UpdateStatus("Scanning thumbnail cache...");
-                string thumbCache = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer");
+                string thumbCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer");
                 potentialSpace += CalculateDirectorySize(thumbCache);
-                
+
                 UpdateProgress(100);
                 double potentialMB = potentialSpace / (1024.0 * 1024.0);
-                UpdateStatus($"SCAN COMPLETE: {potentialMB:N0}MB RECOVERABLE");
-                
+                if (potentialMB >= 1024)
+                    UpdateStatus($"SCAN COMPLETE: {potentialMB / 1024.0:F1} GB RECOVERABLE");
+                else
+                    UpdateStatus($"SCAN COMPLETE: {potentialMB:N0} MB RECOVERABLE");
+
                 System.Threading.Thread.Sleep(1000);
             });
-            
+
             IsCleaning = false;
         }
-        
+
         private long CalculateDirectorySize(string path)
         {
-            if (!System.IO.Directory.Exists(path))
+            if (!Directory.Exists(path))
                 return 0;
-                
+
             try
             {
-                var dirInfo = new System.IO.DirectoryInfo(path);
                 long size = 0;
-                
-                // Get files in current directory
-                foreach (var file in dirInfo.GetFiles())
+                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
                 {
-                    try { size += file.Length; } catch { }
+                    try { size += new FileInfo(file).Length; } catch { }
                 }
-                
-                // Get subdirectories
-                foreach (var dir in dirInfo.GetDirectories())
-                {
-                    try { size += CalculateDirectorySize(dir.FullName); } catch { }
-                }
-                
                 return size;
             }
             catch
@@ -395,7 +361,6 @@ namespace BorderlandsStorageCleaner
                 return 0;
             }
         }
-
 
         private void UpdateProgress(int percent)
         {
@@ -413,7 +378,7 @@ namespace BorderlandsStorageCleaner
             });
         }
 
-        private void AddLogMessage(string message)
+        public void AddLogMessage(string message)
         {
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             string logLine = $"[{timestamp}] {message}";

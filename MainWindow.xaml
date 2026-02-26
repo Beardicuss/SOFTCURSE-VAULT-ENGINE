@@ -10,8 +10,7 @@
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="CenterScreen"
         MinWidth="800"
-        MinHeight="600"
-        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+        MinHeight="600">
 
     <Window.Background>
         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.95">
@@ -379,7 +378,8 @@
                                         <TextBox x:Name="txtLog" IsReadOnly="True" Background="Transparent" 
                                                  Foreground="#00FF00" FontFamily="Consolas" FontSize="11" 
                                                  TextWrapping="Wrap" BorderThickness="0" VerticalAlignment="Top"
-                                                 Text="{Binding LogText, Mode=OneWay}"/>
+                                                 Text="{Binding LogText, Mode=OneWay}"
+                                                 TextChanged="TxtLog_TextChanged"/>
                                     </ScrollViewer>
                                 </Grid>
                             </Border>
@@ -411,9 +411,20 @@
 
                                         <TextBlock Text="Custom folders to clean:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
-                                        <TextBox x:Name="txtCustomPaths" Style="{StaticResource TechTextBox}" 
-                                                 Height="60" TextWrapping="Wrap" AcceptsReturn="True"
-                                                 Text="{Binding CustomPaths}"/>
+                                        <ListBox x:Name="lstCustomFolders" Height="60" 
+                                                 Background="#020202" Foreground="#00FFFF" 
+                                                 BorderBrush="#00FFFF" BorderThickness="1"
+                                                 FontFamily="Consolas" FontSize="11"
+                                                 ItemsSource="{Binding CustomFolders}"
+                                                 SelectedItem="{Binding SelectedCustomFolder}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                            <Button Content="+ ADD FOLDER" Style="{StaticResource TechButton}" 
+                                                    FontSize="10" Padding="8,4" Margin="0,0,5,0"
+                                                    Click="BtnAddFolder_Click"/>
+                                            <Button Content="- REMOVE" Style="{StaticResource TechButton}" 
+                                                    FontSize="10" Padding="8,4"
+                                                    Command="{Binding RemoveFolderCommand}"/>
+                                        </StackPanel>
 
                                         <TextBlock Text="Advanced options:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
