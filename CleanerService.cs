@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     /// <summary>
     /// Configuration passed from ViewModel checkboxes to control which cleanup tasks run.
@@ -21,7 +21,7 @@ namespace BorderlandsStorageCleaner
         public bool CleanRecycleBin { get; set; } = false;
         public bool CleanPrefetch { get; set; } = true;
         public bool DeepScanMode { get; set; } = false;
-        public bool CreateBackup { get; set; } = false;
+        public bool UseRecycleBin { get; set; } = false;
         public List<string> CustomPaths { get; set; } = new List<string>();
     }
 
@@ -31,7 +31,7 @@ namespace BorderlandsStorageCleaner
     /// </summary>
     public class CleanerService
     {
-        private bool _abortRequested = false;
+        private volatile bool _abortRequested = false;
         private long _totalSpaceFreed = 0;
         private Action<int> _progressCallback;
         private Action<string> _statusCallback;
@@ -39,8 +39,7 @@ namespace BorderlandsStorageCleaner
 
         public long TotalSpaceFreed => _totalSpaceFreed;
 
-        // Configuration fields (updated from UI via CleanupConfig)
-        private List<string> targetDrives = new List<string> { "D", "E", "F" };
+        // Configuration fields
         private int requiredFreeGB = 20;
         private int pagefileMarginGB = 5;
 
@@ -56,7 +55,7 @@ namespace BorderlandsStorageCleaner
             _abortRequested = true;
         }
 
-        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback, CleanupConfig config)
+        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback, CleanupConfig config, CancellationToken token = default)
         {
             _abortRequested = false;
             _totalSpaceFreed = 0;
@@ -64,11 +63,12 @@ namespace BorderlandsStorageCleaner
             _statusCallback = statusCallback;
             _logCallback = logCallback;
 
-            await Task.Run(() => ExecuteCleanupProtocol(config));
+            await Task.Run(() => ExecuteCleanupProtocol(config, token), token);
         }
 
-        private void ExecuteCleanupProtocol(CleanupConfig config)
+        private void ExecuteCleanupProtocol(CleanupConfig config, CancellationToken token = default)
         {
+            bool ShouldStop() => _abortRequested || token.IsCancellationRequested;
             LogStatus("=== INITIATING CLEANUP PROTOCOL ===");
             UpdateStatus("INITIATING CLEANUP SEQUENCE");
 
@@ -125,7 +125,7 @@ namespace BorderlandsStorageCleaner
             int totalTasks = tasks.Count;
             for (int i = 0; i < totalTasks; i++)
             {
-                if (_abortRequested) break;
+                if (ShouldStop()) break;
 
                 int progress = totalTasks > 1
                     ? 5 + (int)((i / (double)(totalTasks - 1)) * 90)
@@ -135,13 +135,13 @@ namespace BorderlandsStorageCleaner
             }
 
             // Pagefile and System Restore (only with deep scan + confirmation already in UI)
-            if (!_abortRequested && selectedDrive != null && config.DeepScanMode)
+            if (!ShouldStop() && selectedDrive != null && config.DeepScanMode)
             {
                 ExecuteTask("Pagefile Configuration", () => ConfigurePagefile(selectedDrive.DriveLetter), 98);
                 ExecuteTask("System Restore Relocation", () => MoveSystemRestore(selectedDrive.DriveLetter), 99);
             }
 
-            if (!_abortRequested)
+            if (!ShouldStop())
             {
                 double freedMB = _totalSpaceFreed / (1024.0 * 1024.0);
                 LogStatus("=== CLEANUP PROTOCOL COMPLETE ===");
@@ -365,8 +365,27 @@ namespace BorderlandsStorageCleaner
                 string thumbCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer");
                 if (Directory.Exists(thumbCache))
                 {
-                    CleanDirectory(thumbCache, "Thumbnail Cache");
-                    LogStatus("Thumbnail cache cleaned successfully");
+                    int deleted = 0;
+                    long bytesFreed = 0;
+                    var patterns = new[] { "thumbcache_*.db", "iconcache_*.db" };
+                    foreach (string pattern in patterns)
+                    {
+                        foreach (string file in Directory.EnumerateFiles(thumbCache, pattern))
+                        {
+                            if (_abortRequested) return;
+                            try
+                            {
+                                long sz = new FileInfo(file).Length;
+                                File.Delete(file);
+                                deleted++;
+                                bytesFreed += sz;
+                            }
+                            catch { }
+                        }
+                    }
+                    Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
+                    double freedMB = bytesFreed / (1024.0 * 1024.0);
+                    LogStatus($"Thumbnail cache: deleted {deleted} files ({freedMB:N1} MB)");
                 }
             }
             catch (Exception ex) { LogStatus($"Thumbnail cache cleanup failed: {ex.Message}"); }
@@ -686,48 +705,41 @@ namespace BorderlandsStorageCleaner
 
         private DriveInfoWrapper SelectTargetDrive()
         {
-            foreach (string drive in targetDrives)
+            // Dynamically find non-system fixed drives
+            string systemDrive = Path.GetPathRoot(Environment.SystemDirectory)?.TrimEnd('\\') ?? "C:";
+            var candidates = DriveInfo.GetDrives()
+                .Where(d => d.IsReady && d.DriveType == DriveType.Fixed && !d.Name.StartsWith(systemDrive, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(d => d.AvailableFreeSpace)
+                .ToList();
+
+            // First pass: require enough free space for pagefile
+            foreach (var di in candidates)
             {
-                try
+                double freeGB = ToGB(di.AvailableFreeSpace);
+                if (freeGB >= requiredFreeGB)
                 {
-                    DriveInfo di = new DriveInfo(drive);
-                    if (di.IsReady)
+                    return new DriveInfoWrapper
                     {
-                        double freeGB = ToGB(di.AvailableFreeSpace);
-                        if (freeGB >= requiredFreeGB)
-                        {
-                            return new DriveInfoWrapper
-                            {
-                                DriveLetter = drive,
-                                FreeGB = freeGB,
-                                TotalGB = ToGB(di.TotalSize)
-                            };
-                        }
-                    }
+                        DriveLetter = di.Name.Substring(0, 1),
+                        FreeGB = freeGB,
+                        TotalGB = ToGB(di.TotalSize)
+                    };
                 }
-                catch { }
             }
 
-            foreach (string drive in targetDrives)
+            // Second pass: lower threshold
+            foreach (var di in candidates)
             {
-                try
+                double freeGB = ToGB(di.AvailableFreeSpace);
+                if (freeGB >= pagefileMarginGB)
                 {
-                    DriveInfo di = new DriveInfo(drive);
-                    if (di.IsReady)
+                    return new DriveInfoWrapper
                     {
-                        double freeGB = ToGB(di.AvailableFreeSpace);
-                        if (freeGB >= pagefileMarginGB)
-                        {
-                            return new DriveInfoWrapper
-                            {
-                                DriveLetter = drive,
-                                FreeGB = freeGB,
-                                TotalGB = ToGB(di.TotalSize)
-                            };
-                        }
-                    }
+                        DriveLetter = di.Name.Substring(0, 1),
+                        FreeGB = freeGB,
+                        TotalGB = ToGB(di.TotalSize)
+                    };
                 }
-                catch { }
             }
 
             return null;

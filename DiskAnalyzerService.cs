@@ -7,7 +7,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     // ══════════════════════════════════════════════════════════════════════════
     //  SIZE FORMATTER
@@ -186,7 +186,7 @@ namespace BorderlandsStorageCleaner
             if (token.IsCancellationRequested) return result;
 
             Status("Phase 4/4 — Sizing installed programs…");
-            result.Programs = ScanPrograms(Status, token);
+            result.Programs = ScanPrograms(rootDrive, Status, token);
             result.Programs.Sort((a, b) => b.Size.CompareTo(a.Size));
             Progress(100); Status("Deep scan complete.");
             return result;
@@ -211,7 +211,9 @@ namespace BorderlandsStorageCleaner
                         {
                             if (File.Exists(item.FullPath))
                             {
-                                long sz = new FileInfo(item.FullPath).Length;
+                                var fi = new FileInfo(item.FullPath);
+                                if (!fi.Exists) { res.FailedCount++; res.Errors.Add($"{item.Label}: File no longer exists"); continue; }
+                                long sz = fi.Length;
                                 File.Delete(item.FullPath);
                                 res.BytesFreed += sz; res.DeletedCount++;
                             }
@@ -293,13 +295,13 @@ namespace BorderlandsStorageCleaner
         // ── DUPLICATE FINDER ─────────────────────────────────────────────────
 
         public async Task<List<DuplicateGroup>> FindDuplicatesAsync(string rootPath,
-            Action<string> statusCb, CancellationToken token)
+            Action<string> statusCb, Action<int> progressCb, CancellationToken token)
         {
-            return await Task.Run(() => FindDuplicates(rootPath, statusCb, token), token);
+            return await Task.Run(() => FindDuplicates(rootPath, statusCb, progressCb, token), token);
         }
 
         private List<DuplicateGroup> FindDuplicates(string root,
-            Action<string> statusCb, CancellationToken token)
+            Action<string> statusCb, Action<int> progressCb, CancellationToken token)
         {
             const long MIN_SIZE = 10 * 1024;
             statusCb?.Invoke("Collecting file list…");
@@ -324,7 +326,9 @@ namespace BorderlandsStorageCleaner
             foreach (var kv in candidates)
             {
                 if (token.IsCancellationRequested) break;
-                statusCb?.Invoke($"Hashing {++done}/{candidates.Count} size groups…");
+                done++;
+                progressCb?.Invoke(30 + (int)(done / (double)candidates.Count * 70));
+                statusCb?.Invoke($"Hashing {done}/{candidates.Count} size groups…");
                 var byHash = new Dictionary<string, List<string>>();
                 foreach (var f in kv.Value)
                 {
@@ -420,12 +424,14 @@ namespace BorderlandsStorageCleaner
             return results;
         }
 
-        private List<ProgramEntry> ScanPrograms(Action<string> Status, CancellationToken token)
+        private List<ProgramEntry> ScanPrograms(string rootDrive, Action<string> Status, CancellationToken token)
         {
             var results = new List<ProgramEntry>();
+            string driveRoot = rootDrive.TrimEnd('\\') + "\\";
             var roots = new[]
             {
-                @"C:\Program Files", @"C:\Program Files (x86)",
+                Path.Combine(driveRoot, "Program Files"),
+                Path.Combine(driveRoot, "Program Files (x86)"),
                 System.IO.Path.Combine(Environment.GetFolderPath(
                     Environment.SpecialFolder.LocalApplicationData), "Programs"),
             };
@@ -500,8 +506,17 @@ namespace BorderlandsStorageCleaner
         private string ComputeMD5(string path)
         {
             using (var md5 = MD5.Create())
-            using (var stream = File.OpenRead(path))
-                return BitConverter.ToString(md5.ComputeHash(stream)).Replace("-","").ToLower();
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192))
+            {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    md5.TransformBlock(buffer, 0, bytesRead, null, 0);
+                }
+                md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+                return BitConverter.ToString(md5.Hash).Replace("-","").ToLower();
+            }
         }
 
         // ── SUGGESTIONS TEXT ─────────────────────────────────────────────────

@@ -7,7 +7,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     public partial class MainWindow : Window
     {
@@ -72,6 +72,9 @@ namespace BorderlandsStorageCleaner
             catch (Exception ex)
             {
                 Debug.WriteLine($"WebView2 Init Failed: {ex.Message}");
+                // I10: Gracefully hide WebView panels if runtime is missing
+                try { loaderStandby.Visibility = Visibility.Collapsed; } catch { }
+                try { loaderActive.Visibility = Visibility.Collapsed; } catch { }
             }
         }
 
@@ -87,15 +90,17 @@ namespace BorderlandsStorageCleaner
                 txtAdminStatus.Text = "[ADMIN PRIVILEGES: ACTIVE]";
                 txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(0, 255, 0));
+                if (btnRestartAdmin != null) btnRestartAdmin.Visibility = Visibility.Collapsed;
             }
             else
             {
                 txtAdminStatus.Text = "[ADMIN PRIVILEGES: INACTIVE]";
                 txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(255, 0, 0));
+                if (btnRestartAdmin != null) btnRestartAdmin.Visibility = Visibility.Visible;
             }
 
-            LogMessage("=== SOFTCURSE VAULT CLEANER v2.2 INITIALIZED ===");
+            LogMessage("=== SOFTCURSE VAULT CLEANER v2.3 INITIALIZED ===");
             LogMessage("SYSTEM: MVVM architecture active");
             LogMessage("READY: Awaiting cleanup protocol initiation");
         }
@@ -226,6 +231,29 @@ namespace BorderlandsStorageCleaner
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             // Reserved for future keyboard shortcuts
+        }
+
+        // I9: Restart application with admin privileges
+        private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (exePath != null)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        UseShellExecute = true,
+                        Verb = "runas"
+                    });
+                    Application.Current.Shutdown();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Admin restart failed: {ex.Message}");
+            }
         }
 
         private void MinimizeWindow(object sender, RoutedEventArgs e)

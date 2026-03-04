@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     public class DiskAnalyzerViewModel : INotifyPropertyChanged
     {
@@ -89,7 +89,7 @@ namespace BorderlandsStorageCleaner
         public string SelectedDrive
         {
             get => _selectedDrive;
-            set { _selectedDrive = value; RaisePC(nameof(SelectedDrive)); }
+            set { _selectedDrive = value; RaisePC(nameof(SelectedDrive)); RefreshDriveInfo(); }
         }
 
         public string JunkSelectedStr  { get => _junkSelectedStr;  set { _junkSelectedStr  = value; RaisePC(nameof(JunkSelectedStr));  } }
@@ -206,13 +206,18 @@ namespace BorderlandsStorageCleaner
                     }
                     foreach (var r in result.Programs) Programs.Add(r);
 
-                    // Suggestions tab: top safe junk items pre-checked, non-safe unchecked
+                    // Suggestions tab: clone items to avoid shared-object mutation with JunkItems
                     SuggestionItems.Clear();
                     foreach (var r in result.JunkTargets)
                     {
-                        r.IsChecked = r.Safe;  // pre-check safe items
-                        r.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateSuggSelectedSize(); };
-                        SuggestionItems.Add(r);
+                        var clone = new JunkTarget
+                        {
+                            Label = r.Label, FullPath = r.FullPath, Size = r.Size,
+                            Safe = r.Safe, Category = r.Category, Note = r.Note,
+                            IsFile = r.IsFile, IsChecked = r.Safe  // pre-check safe items
+                        };
+                        clone.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateSuggSelectedSize(); };
+                        SuggestionItems.Add(clone);
                     }
                     UpdateSuggSelectedSize();
 
@@ -244,7 +249,9 @@ namespace BorderlandsStorageCleaner
             try
             {
                 var groups = await _svc.FindDuplicatesAsync(
-                    DupRoot, msg => Dispatch(() => Status = msg), _cts.Token);
+                    DupRoot, msg => Dispatch(() => Status = msg),
+                    pct => Dispatch(() => Progress = pct),
+                    _cts.Token);
 
                 long totalWaste = 0;
                 Dispatch(() =>
@@ -562,7 +569,7 @@ namespace BorderlandsStorageCleaner
             finally { Dispatch(() => IsScanning = false); }
         }
 
-                private void ClearAll()
+        private void ClearAll()
         {
             TopFolders.Clear(); JunkItems.Clear(); JunkFiltered.Clear();
             LargeFiles.Clear(); Programs.Clear(); DupeRows.Clear(); SuggestionItems.Clear();
@@ -611,21 +618,5 @@ namespace BorderlandsStorageCleaner
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void RaisePC(string n) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
-    }
-
-    // ── Generic RelayCommand<T> ───────────────────────────────────────────
-    public class RelayCommand<T> : ICommand
-    {
-        private readonly Action<T> _execute;
-        private readonly Func<T, bool> _canExecute;
-        public RelayCommand(Action<T> execute, Func<T, bool> canExecute = null)
-        { _execute = execute; _canExecute = canExecute; }
-        public bool CanExecute(object p) => _canExecute == null || (p is T t && _canExecute(t));
-        public void Execute(object p)    => _execute(p is T t ? t : default);
-        public event EventHandler CanExecuteChanged
-        {
-            add    { CommandManager.RequerySuggested += value; }
-            remove { CommandManager.RequerySuggested -= value; }
-        }
     }
 }

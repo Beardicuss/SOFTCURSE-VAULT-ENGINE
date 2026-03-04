@@ -1,7 +1,7 @@
-<Window x:Class="BorderlandsStorageCleaner.MainWindow"
+<Window x:Class="SoftcurseVaultCleaner.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:BorderlandsStorageCleaner"
+        xmlns:local="clr-namespace:SoftcurseVaultCleaner"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         Title="SOFTCURSE VAULT ENGINE v3.0"
         Height="750" Width="1000"
@@ -342,11 +342,23 @@
                                         <DropShadowEffect Color="#00FFFF" BlurRadius="10" ShadowDepth="0"/>
                                     </TextBlock.Effect>
                                 </TextBlock>
-                                <TextBlock x:Name="txtAdminStatus"
-                                           Text="[ADMIN PRIVILEGES: CHECKING...]"
-                                           FontFamily="Consolas"
-                                           FontSize="10"
-                                           Foreground="#FF00FF"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="txtAdminStatus"
+                                               Text="[ADMIN PRIVILEGES: CHECKING...]"
+                                               FontFamily="Consolas"
+                                               FontSize="10"
+                                               Foreground="#FF00FF"
+                                               VerticalAlignment="Center"/>
+                                    <Button x:Name="btnRestartAdmin"
+                                            Content="⚡ Restart as Admin"
+                                            FontFamily="Consolas" FontSize="9"
+                                            Margin="10,0,0,0" Padding="8,2"
+                                            Background="#1A1A1A" Foreground="#FF4444"
+                                            BorderBrush="#FF4444" BorderThickness="1"
+                                            Cursor="Hand"
+                                            Click="BtnRestartAsAdmin_Click"
+                                            Visibility="Collapsed"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10">
@@ -546,9 +558,10 @@
                                         <CheckBox x:Name="chkDeepScan" Content="Deep scan mode" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding DeepScanMode}"/>
-                                        <CheckBox x:Name="chkBackup" Content="Create backup before deletion" 
+                                        <CheckBox x:Name="chkRecycleBinMode" Content="Safe delete (Recycle Bin)" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="{Binding CreateBackup}"/>
+                                                  IsChecked="{Binding UseRecycleBin}"
+                                                  ToolTip="Send files to Recycle Bin instead of permanent deletion"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Border>

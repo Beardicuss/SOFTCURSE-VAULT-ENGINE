@@ -2,7 +2,7 @@
 using System.IO;
 using System.Windows;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     public partial class App : Application
     {

@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace BorderlandsStorageCleaner.Properties
+namespace SoftcurseVaultCleaner.Properties
 {
 
 

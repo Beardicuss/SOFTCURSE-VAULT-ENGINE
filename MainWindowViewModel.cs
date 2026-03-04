@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Threading;
 
-namespace BorderlandsStorageCleaner
+namespace SoftcurseVaultCleaner
 {
     /// <summary>
     /// ViewModel for the main application window.
@@ -28,13 +28,14 @@ namespace BorderlandsStorageCleaner
         private bool _cleanRecycleBin = false;
         private bool _cleanPrefetch = true;
         private bool _deepScanMode = false;
-        private bool _createBackup = false;
+        private bool _useRecycleBin = false;
 
         // Timer and stats properties
         private string _timeElapsed = "Time: 00:00";
         private string _spaceFreed = "Freed: 0 MB";
         private string _diskSpace = "C: 0.0GB FREE";
         private string _logText = "";
+        private readonly System.Text.StringBuilder _logBuilder = new System.Text.StringBuilder();
 
         // Custom folder list (replaces old string CustomPaths)
         private ObservableCollection<string> _customFolders;
@@ -51,6 +52,7 @@ namespace BorderlandsStorageCleaner
         {
             _cleanerService = new CleanerService();
             _status = "STANDBY";
+            _customFolders = new ObservableCollection<string>();
             DiskAnalyzer = new DiskAnalyzerViewModel();
             // Wire "Send to Vault" callback: adds paths into CustomFolders list
             DiskAnalyzer.SendPathsToVaultCallback = paths =>
@@ -61,7 +63,6 @@ namespace BorderlandsStorageCleaner
                         AddCustomFolder(path);
                 });
             };
-            _customFolders = new ObservableCollection<string>();
 
             StartCleaningCommand = new RelayCommand(StartCleaning, () => !IsCleaning);
             AbortCleaningCommand = new RelayCommand(AbortCleaning, () => IsCleaning);
@@ -171,11 +172,12 @@ namespace BorderlandsStorageCleaner
             set { if (_deepScanMode != value) { _deepScanMode = value; OnPropertyChanged(nameof(DeepScanMode)); } }
         }
 
-        public bool CreateBackup
+        public bool UseRecycleBin
         {
-            get => _createBackup;
-            set { if (_createBackup != value) { _createBackup = value; OnPropertyChanged(nameof(CreateBackup)); } }
+            get => _useRecycleBin;
+            set { if (_useRecycleBin != value) { _useRecycleBin = value; OnPropertyChanged(nameof(UseRecycleBin)); } }
         }
+
 
         public string TimeElapsed
         {
@@ -260,7 +262,7 @@ namespace BorderlandsStorageCleaner
                 CleanRecycleBin = CleanRecycleBin,
                 CleanPrefetch = CleanPrefetch,
                 DeepScanMode = DeepScanMode,
-                CreateBackup = CreateBackup,
+                UseRecycleBin = UseRecycleBin,
                 CustomPaths = CustomFolders.ToList()
             };
         }
@@ -316,10 +318,11 @@ namespace BorderlandsStorageCleaner
             {
                 long potentialSpace = 0;
 
+                string sysRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
                 UpdateProgress(20);
                 UpdateStatus("Scanning TEMP folders...");
                 potentialSpace += CalculateDirectorySize(Path.GetTempPath());
-                potentialSpace += CalculateDirectorySize(@"C:\Windows\Temp");
+                potentialSpace += CalculateDirectorySize(Path.Combine(sysRoot, "Windows", "Temp"));
 
                 UpdateProgress(40);
                 UpdateStatus("Scanning browser caches...");
@@ -335,7 +338,7 @@ namespace BorderlandsStorageCleaner
 
                 UpdateProgress(60);
                 UpdateStatus("Scanning Windows Update cache...");
-                potentialSpace += CalculateDirectorySize(@"C:\Windows\SoftwareDistribution\Download");
+                potentialSpace += CalculateDirectorySize(Path.Combine(sysRoot, "Windows", "SoftwareDistribution", "Download"));
 
                 UpdateProgress(80);
                 UpdateStatus("Scanning thumbnail cache...");
@@ -397,7 +400,8 @@ namespace BorderlandsStorageCleaner
             string logLine = $"[{timestamp}] {message}";
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                LogText += logLine + Environment.NewLine;
+                _logBuilder.AppendLine(logLine);
+                LogText = _logBuilder.ToString();
             });
         }
 
@@ -405,34 +409,20 @@ namespace BorderlandsStorageCleaner
         {
             try
             {
-                var drive = new DriveInfo("C");
+                string sysRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
+                string driveLetter = sysRoot.Substring(0, 1);
+                var drive = new DriveInfo(driveLetter);
                 double freeGB = drive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
-                return $"C: {freeGB:F1}GB FREE";
+                return $"{driveLetter}: {freeGB:F1}GB FREE";
             }
             catch
             {
-                return "C: --GB FREE";
+                return "--GB FREE";
             }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    // Simple RelayCommand implementation
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
-        {
-            _execute = execute;
-            _canExecute = canExecute;
-        }
-        public bool CanExecute(object parameter) => _canExecute == null || _canExecute();
-        public void Execute(object parameter) => _execute();
-        public event EventHandler CanExecuteChanged;
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
     }
 }

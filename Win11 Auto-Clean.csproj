@@ -5,7 +5,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Win11 Auto-Clean</AssemblyName>
-    <RootNamespace>BorderlandsStorageCleaner</RootNamespace>
+    <RootNamespace>SoftcurseVaultCleaner</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <NoWarn>CA1416</NoWarn><!-- Suppress platform compatibility warnings for Windows-only app -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
