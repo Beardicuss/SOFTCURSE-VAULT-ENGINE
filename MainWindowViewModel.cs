@@ -44,10 +44,23 @@ namespace BorderlandsStorageCleaner
         private DispatcherTimer _cleanupTimer;
         private Stopwatch _cleanupStopwatch;
 
+        // ── Disk Analyzer sub-ViewModel ───────────────────────────────────────
+        public DiskAnalyzerViewModel DiskAnalyzer { get; }
+
         public MainWindowViewModel()
         {
             _cleanerService = new CleanerService();
             _status = "STANDBY";
+            DiskAnalyzer = new DiskAnalyzerViewModel();
+            // Wire "Send to Vault" callback: adds paths into CustomFolders list
+            DiskAnalyzer.SendPathsToVaultCallback = paths =>
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    foreach (var path in paths)
+                        AddCustomFolder(path);
+                });
+            };
             _customFolders = new ObservableCollection<string>();
 
             StartCleaningCommand = new RelayCommand(StartCleaning, () => !IsCleaning);

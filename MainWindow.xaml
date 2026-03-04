@@ -1,9 +1,9 @@
-﻿<Window x:Class="BorderlandsStorageCleaner.MainWindow"
+<Window x:Class="BorderlandsStorageCleaner.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:BorderlandsStorageCleaner"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="SOFTCURSE VAULT CLEANER v2.2"
+        Title="SOFTCURSE VAULT ENGINE v3.0"
         Height="750" Width="1000"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -173,6 +173,43 @@
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
+
+        <!-- Tech Tab Style -->
+        <Style x:Key="TechTabItem" TargetType="TabItem">
+            <Setter Property="Background" Value="#050505"/>
+            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize"   Value="12"/>
+            <Setter Property="Padding"    Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="#00FFFF" BorderThickness="0,0,0,0"
+                                Padding="16,8" Margin="0,0,2,0">
+                            <ContentPresenter x:Name="cp"
+                                ContentSource="Header"
+                                TextElement.Foreground="{TemplateBinding Foreground}"
+                                TextElement.FontFamily="{TemplateBinding FontFamily}"
+                                TextElement.FontSize="{TemplateBinding FontSize}"
+                                TextElement.FontWeight="Bold"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="bd" Property="Background"   Value="#0a1a1a"/>
+                                <Setter TargetName="bd" Property="BorderThickness" Value="1,1,1,0"/>
+                                <Setter TargetName="cp" Property="TextElement.Foreground" Value="#00FFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background"   Value="#081212"/>
+                                <Setter TargetName="cp" Property="TextElement.Foreground" Value="#aaaaaa"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- Main Container with Resize Borders -->
@@ -226,7 +263,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="20,0">
-                                <TextBlock Text=" SOFTCURSE VAULT CLEANER v2.2 "
+                                <TextBlock Text=" SOFTCURSE VAULT ENGINE v3.0 "
                                            FontFamily="Consolas"
                                            FontSize="20"
                                            FontWeight="Bold"
@@ -253,14 +290,22 @@
 
                     <!-- Action Buttons (Removed: Duplicates of Left Panel buttons and caused layout issues) -->
 
-                    <!-- MAIN CONTENT -->
-                    <Grid Grid.Row="1" Margin="15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*"/>
-                            <ColumnDefinition Width="3*"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- MAIN CONTENT — Tabbed Layout -->
+                    <Grid Grid.Row="1">
+                        <TabControl Background="#020202" BorderBrush="#00FFFF" BorderThickness="0,1,0,0">
+                            <TabControl.Resources>
+                                <Style TargetType="TabItem" BasedOn="{StaticResource TechTabItem}"/>
+                            </TabControl.Resources>
 
-                        <!-- LEFT PANEL -->
+                            <!-- ══ TAB 1: VAULT CLEANER (original) ══ -->
+                            <TabItem Header="  🧹 VAULT CLEANER  " Style="{StaticResource TechTabItem}">
+                                <Grid Margin="15">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*"/>
+                                        <ColumnDefinition Width="3*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- LEFT PANEL -->
                         <Border Grid.Column="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="2" Margin="0,0,10,0">
                             <Border.Effect>
                                 <DropShadowEffect Color="#00FFFF" BlurRadius="25" Opacity="0.5"/>
@@ -438,6 +483,521 @@
                                 </ScrollViewer>
                             </Border>
                         </Grid>
+                    </Grid>
+                            </TabItem>
+
+<TabItem Header="  💽 DISK ANALYZER  " Style="{StaticResource TechTabItem}">
+    <Grid DataContext="{Binding DiskAnalyzer}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ── Drive bar ─────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="#050505" BorderBrush="#00FFFF"
+                BorderThickness="0,0,0,1" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{Binding DriveInfo}" Foreground="#00FFFF"
+                               FontFamily="Consolas" FontSize="12" FontWeight="Bold"/>
+                    <ProgressBar Value="{Binding Progress}" Maximum="100" Height="8" Margin="0,6,0,3"
+                                 Foreground="#00FFFF" Background="#111" BorderBrush="#00FFFF" BorderThickness="1"/>
+                    <TextBlock Text="{Binding Status}" Foreground="#888"
+                               FontFamily="Consolas" FontSize="10"/>
+                </StackPanel>
+                <WrapPanel Grid.Column="1" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="1" Margin="3,2" Padding="8,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✅ Safe: " Foreground="#888" FontFamily="Consolas" FontSize="10"/>
+                            <TextBlock Text="{Binding SafeTotalStr}" Foreground="#4ade80" FontFamily="Consolas" FontSize="10" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="1" Margin="3,2" Padding="8,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠ Review: " Foreground="#888" FontFamily="Consolas" FontSize="10"/>
+                            <TextBlock Text="{Binding ReviewTotalStr}" Foreground="#fbbf24" FontFamily="Consolas" FontSize="10" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="1" Margin="3,2" Padding="8,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📦 Large: " Foreground="#888" FontFamily="Consolas" FontSize="10"/>
+                            <TextBlock Text="{Binding LargeCountStr}" Foreground="#00FFFF" FontFamily="Consolas" FontSize="10" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="1" Margin="3,2" Padding="8,3">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🖥 Apps: " Foreground="#888" FontFamily="Consolas" FontSize="10"/>
+                            <TextBlock Text="{Binding ProgCountStr}" Foreground="#00FFFF" FontFamily="Consolas" FontSize="10" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Border>
+                </WrapPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Inner tabs ────────────────────────────────────── -->
+        <TabControl Grid.Row="1" Background="#020202" BorderBrush="#222" BorderThickness="0,1,0,0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Background" Value="#050505"/>
+                    <Setter Property="Foreground" Value="#666666"/>
+                    <Setter Property="FontFamily" Value="Consolas"/>
+                    <Setter Property="FontSize"   Value="11"/>
+                    <Setter Property="Padding"    Value="0"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="tabBorder"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="#222" BorderThickness="1,1,1,0"
+                                        Padding="12,5" Margin="0,0,2,0">
+                                    <ContentPresenter x:Name="tabContent"
+                                        ContentSource="Header"
+                                        TextElement.Foreground="{TemplateBinding Foreground}"
+                                        TextElement.FontFamily="{TemplateBinding FontFamily}"
+                                        TextElement.FontSize="{TemplateBinding FontSize}"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="tabBorder" Property="Background" Value="#0a1a1a"/>
+                                        <Setter TargetName="tabBorder" Property="BorderBrush" Value="#00FFFF"/>
+                                        <Setter TargetName="tabContent" Property="TextElement.Foreground" Value="#00FFFF"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="tabBorder" Property="Background" Value="#081212"/>
+                                        <Setter TargetName="tabContent" Property="TextElement.Foreground" Value="#aaaaaa"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style TargetType="DataGrid">
+                    <Setter Property="Background"           Value="#050505"/>
+                    <Setter Property="Foreground"           Value="#cccccc"/>
+                    <Setter Property="GridLinesVisibility"  Value="Horizontal"/>
+                    <Setter Property="HorizontalGridLinesBrush" Value="#111"/>
+                    <Setter Property="BorderThickness"      Value="0"/>
+                    <Setter Property="RowBackground"        Value="#050505"/>
+                    <Setter Property="AlternatingRowBackground" Value="#080808"/>
+                    <Setter Property="FontFamily"           Value="Consolas"/>
+                    <Setter Property="FontSize"             Value="11"/>
+                    <Setter Property="SelectionMode"        Value="Single"/>
+                    <Setter Property="AutoGenerateColumns"  Value="False"/>
+                    <Setter Property="IsReadOnly"           Value="False"/>
+                    <Setter Property="CanUserSortColumns"   Value="True"/>
+                    <Setter Property="HeadersVisibility"    Value="Column"/>
+                </Style>
+                <Style TargetType="DataGridColumnHeader">
+                    <Setter Property="Background"        Value="#0a0a0a"/>
+                    <Setter Property="Foreground"        Value="#00FFFF"/>
+                    <Setter Property="FontFamily"        Value="Consolas"/>
+                    <Setter Property="FontSize"          Value="10"/>
+                    <Setter Property="Padding"           Value="8,4"/>
+                    <Setter Property="BorderBrush"       Value="#222"/>
+                    <Setter Property="BorderThickness"   Value="0,0,1,1"/>
+                </Style>
+                <Style TargetType="DataGridCheckBoxColumn"/>
+
+                <!-- Kill white selection highlight on rows -->
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                    <Setter Property="Background"            Value="#050505"/>
+                    <Setter Property="Foreground"            Value="#cccccc"/>
+                    <Setter Property="BorderBrush"           Value="#111"/>
+                    <Setter Property="BorderThickness"       Value="0,0,0,1"/>
+                </Style>
+                <!-- Kill white cell selection box -->
+                <Style TargetType="DataGridCell">
+                    <Setter Property="Background"   Value="Transparent"/>
+                    <Setter Property="BorderBrush"  Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter Property="Background"  Value="#0d2020"/>
+                            <Setter Property="BorderBrush" Value="#00FFFF"/>
+                            <Setter Property="Foreground"  Value="#00FFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter Property="BorderBrush" Value="#00FFFF"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ═══ TAB 1: Overview ════════════════════════════════════════ -->
+            <TabItem Header="📊 Overview">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text=" Top-Level C:\\ Folder Sizes (read-only — use tabs below to delete)"
+                               Foreground="#00FFFF" FontFamily="Consolas" FontWeight="Bold" FontSize="11" Margin="10,8"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding TopFolders}">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="  Folder"      Binding="{Binding Name}"    Width="220" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Size"          Binding="{Binding SizeStr}" Width="100" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="% of Drive"    Binding="{Binding PctStr}"  Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Note / Action" Binding="{Binding Note}"    Width="*"   IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 2: Junk Scan ═══════════════════════════════════════ -->
+            <TabItem Header="🗑 Junk Scan">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <TextBlock Text="Filter: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding JunkCategories}"
+                                  SelectedItem="{Binding JunkFilter, Mode=TwoWay}"
+                                  Background="#050505" Foreground="#00FFFF" BorderBrush="#00FFFF"
+                                  FontFamily="Consolas" FontSize="11" Width="120" Margin="4,0,12,0"/>
+                        <Button Content="☑ Select All"  Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding SelectAllJunkCommand}"/>
+                        <Button Content="✅ Safe Only"  Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding SelectSafeJunkCommand}"/>
+                        <Button Content="☐ Deselect"   Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding DeselectAllJunkCommand}"/>
+                        <Button Content="📋  SEND TO VAULT CLEANER" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="16,0,2,0"
+                                Command="{Binding SendJunkToVaultCommand}"/>
+                    </StackPanel>
+
+                    <!-- Grid with checkboxes -->
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding JunkFiltered}">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Safe}" Value="True">
+                                        <Setter Property="Foreground" Value="#4ade80"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Safe}" Value="False">
+                                        <Setter Property="Foreground" Value="#fbbf24"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsChecked}" Value="True">
+                                        <Setter Property="Background" Value="#0a1a0a"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
+                            <DataGridTextColumn Header="  Location"    Binding="{Binding Label}"    Width="240" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Size"          Binding="{Binding SizeStr}"  Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Safe?"         Binding="{Binding SafeStr}"  Width="80"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Category"      Binding="{Binding Category}" Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Note / Action" Binding="{Binding Note}"     Width="*"   IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Delete bar -->
+                    <Border Grid.Row="2" Background="#050508" BorderBrush="#00FFFF" BorderThickness="0,1,0,0" Padding="10,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="🗑  DELETE SELECTED" Style="{StaticResource TechButton}"
+                                    FontSize="12" Padding="14,6" Background="#1a0000" BorderBrush="#ff5f6d"
+                                    Foreground="#ff5f6d" Command="{Binding DeleteJunkCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding JunkSelectedStr}"
+                                       Foreground="#fbbf24" FontFamily="Consolas" FontSize="11"
+                                       VerticalAlignment="Center" Margin="16,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 3: Large Files ═════════════════════════════════════ -->
+            <TabItem Header="📦 Large Files">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <TextBlock Text="Drive: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding AvailableDrives}"
+                                  SelectedItem="{Binding SelectedDrive, Mode=TwoWay}"
+                                  Background="#050505" Foreground="#00FFFF" BorderBrush="#00FFFF"
+                                  FontFamily="Consolas" FontSize="11" Width="70" Margin="4,0,12,0"/>
+                        <TextBlock Text="Min size: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
+                        <ComboBox SelectedItem="{Binding MinFileSizeLabel, Mode=TwoWay}"
+                                  Background="#050505" Foreground="#00FFFF" BorderBrush="#00FFFF"
+                                  FontFamily="Consolas" FontSize="11" Width="100" Margin="4,0,12,0">
+                            <ComboBoxItem Content="10 MB"/><ComboBoxItem Content="50 MB"/>
+                            <ComboBoxItem Content="100 MB" IsSelected="True"/>
+                            <ComboBoxItem Content="500 MB"/><ComboBoxItem Content="1 GB"/>
+                        </ComboBox>
+                        <Button Content="☑ Select All"  Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding SelectAllLargeCommand}"/>
+                        <Button Content="☐ Deselect"    Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding DeselectAllLargeCommand}"/>
+                        <Button Content="📁 Open in Explorer" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="12,0,2,0"
+                                Command="{Binding OpenFileLocationCommand}"
+                                CommandParameter="{Binding SelectedItem.Path, ElementName=dgLargeFiles}"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" x:Name="dgLargeFiles" ItemsSource="{Binding LargeFiles}">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecked}" Value="True">
+                                        <Setter Property="Background" Value="#0a1a0a"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
+                            <DataGridTextColumn Header="  File Path" Binding="{Binding Path}"    Width="*"   IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Size"        Binding="{Binding SizeStr}" Width="100" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Type"        Binding="{Binding Ext}"     Width="65"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Folder"      Binding="{Binding Folder}"  Width="300" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Delete bar -->
+                    <Border Grid.Row="2" Background="#050508" BorderBrush="#00FFFF" BorderThickness="0,1,0,0" Padding="10,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="🗑  DELETE SELECTED FILES" Style="{StaticResource TechButton}"
+                                    FontSize="12" Padding="14,6" Background="#1a0000" BorderBrush="#ff5f6d"
+                                    Foreground="#ff5f6d" Command="{Binding DeleteLargeCommand}" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1" Content="📋  SEND TO VAULT CLEANER" Style="{StaticResource TechButton}"
+                                    FontSize="12" Padding="14,6" Background="#001a10" BorderBrush="#00FFFF"
+                                    Foreground="#00FFFF" Command="{Binding SendLargeToVaultCommand}"/>
+                            <TextBlock Grid.Column="2" Text="{Binding LargeSelectedStr}"
+                                       Foreground="#fbbf24" FontFamily="Consolas" FontSize="11"
+                                       VerticalAlignment="Center" Margin="16,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 4: Duplicates ══════════════════════════════════════ -->
+            <TabItem Header="👥 Duplicates">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <TextBlock Text="Scan folder: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding DupRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource TechTextBox}" Width="360" Margin="4,0,8,0"/>
+                        <Button Content="▶ FIND DUPES" Style="{StaticResource TechButton}" FontSize="10" Padding="10,3" Margin="2,0,16,0"
+                                Command="{Binding DupScanCommand}"/>
+                        <Button Content="☑ Select All Dupes" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding SelectAllDupesCommand}"/>
+                        <Button Content="☐ Deselect" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding DeselectAllDupesCommand}"/>
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding DupeRows}" IsReadOnly="False">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                        <Setter Property="Foreground" Value="#00FFFF"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsDupe}" Value="True">
+                                        <Setter Property="Foreground" Value="#fbbf24"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsChecked}" Value="True">
+                                        <Setter Property="Background" Value="#1a1000"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
+                            <DataGridTextColumn Header="Group"  Binding="{Binding GroupLabel}" Width="55"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="  File Path" Binding="{Binding FilePath}" Width="*"   IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Size"   Binding="{Binding SizeStr}"    Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Hash"   Binding="{Binding Hash}"       Width="115" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Info"   Binding="{Binding WastedInfo}" Width="130" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="2" Background="#050508" BorderBrush="#00FFFF" BorderThickness="0,1,0,0" Padding="10,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="🗑  DELETE CHECKED DUPLICATES" Style="{StaticResource TechButton}"
+                                    FontSize="12" Padding="14,6" Background="#1a0000" BorderBrush="#ff5f6d"
+                                    Foreground="#ff5f6d" Command="{Binding DeleteDupesCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding DupeSelectedStr}"
+                                       Foreground="#fbbf24" FontFamily="Consolas" FontSize="11"
+                                       VerticalAlignment="Center" Margin="16,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 5: Programs ════════════════════════════════════════ -->
+            <TabItem Header="🖥 Programs">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="#0a1a0a" BorderBrush="#00FFFF" BorderThickness="0,0,0,1" Padding="12,6">
+                        <TextBlock Foreground="#888" FontFamily="Consolas" FontSize="10"
+                                   Text="Programs are listed for reference only. To uninstall: Windows Settings → Apps → Apps &amp; features"/>
+                    </Border>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Programs}" IsReadOnly="True">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="  Application" Binding="{Binding Name}"     Width="320"/>
+                            <DataGridTextColumn Header="Size"          Binding="{Binding SizeStr}"  Width="100"/>
+                            <DataGridTextColumn Header="Path"          Binding="{Binding FullPath}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 6: Suggestions ════════════════════════════════════ -->
+            <TabItem Header="💡 Suggestions">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <Button Content="☑ Select All Safe"  Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding SelectAllSuggestionsCommand}"/>
+                        <Button Content="☐ Deselect All"     Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
+                                Command="{Binding DeselectAllSuggestionsCommand}"/>
+                        <TextBlock Text="  Only ✅ Safe items can be deleted from here"
+                                   Foreground="#555" FontFamily="Consolas" FontSize="10" VerticalAlignment="Center" Margin="12,0"/>
+                    </StackPanel>
+
+                    <!-- Suggestions list with checkboxes -->
+                    <DataGrid Grid.Row="1" x:Name="dgSuggestions"
+                              ItemsSource="{Binding SuggestionItems}"
+                              AutoGenerateColumns="False" IsReadOnly="False"
+                              Background="#050505" Foreground="#ccc"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#111"
+                              BorderThickness="0" RowBackground="#050505" AlternatingRowBackground="#080808"
+                              FontFamily="Consolas" FontSize="11" SelectionMode="Single"
+                              CanUserSortColumns="True" HeadersVisibility="Column">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="#050505"/>
+                                <Setter Property="Foreground" Value="#cccccc"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Safe}" Value="True">
+                                        <Setter Property="Foreground" Value="#4ade80"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Safe}" Value="False">
+                                        <Setter Property="Foreground" Value="#fbbf24"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsChecked}" Value="True">
+                                        <Setter Property="Background" Value="#0a1a0a"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CanDelete}" Value="False">
+                                        <Setter Property="Foreground" Value="#333"/>
+                                        <Setter Property="FontStyle" Value="Italic"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓"
+                                Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"
+                                Width="36"/>
+                            <DataGridTextColumn Header="  Item"     Binding="{Binding Label}"   Width="260" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Size"       Binding="{Binding SizeStr}" Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Safe?"      Binding="{Binding SafeStr}" Width="80"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Category"   Binding="{Binding Category}" Width="90"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Action"     Binding="{Binding Note}"    Width="*"   IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Delete bar -->
+                    <Border Grid.Row="2" Background="#050508" BorderBrush="#00FFFF" BorderThickness="0,1,0,0" Padding="10,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="🗑  DELETE SELECTED (SAFE ONLY)"
+                                    Style="{StaticResource TechButton}"
+                                    FontSize="12" Padding="14,6"
+                                    Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"
+                                    Command="{Binding DeleteSuggestionsCommand}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SuggSelectedStr}"
+                                       Foreground="#fbbf24" FontFamily="Consolas" FontSize="11"
+                                       VerticalAlignment="Center" Margin="16,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ── Bottom scan bar ────────────────────────────────────── -->
+        <Border Grid.Row="2" Background="#050505" BorderBrush="#00FFFF"
+                BorderThickness="0,1,0,0" Padding="12,8">
+            <StackPanel Orientation="Horizontal">
+                <Button Content="▶  DEEP SCAN" Style="{StaticResource TechButton}"
+                        Command="{Binding ScanCommand}" FontSize="13" Padding="16,6" Margin="0,0,8,0"/>
+                <Button Content="■  CANCEL" Style="{StaticResource TechButton}"
+                        Command="{Binding CancelScanCommand}" FontSize="13" Padding="12,6" Margin="0,0,16,0"/>
+                <TextBlock Text="{Binding Status}" Foreground="#00FFFF"
+                           FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"
+                           TextWrapping="Wrap" MaxWidth="600"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</TabItem>
+                        </TabControl>
                     </Grid>
                 </Grid>
             </Border>
