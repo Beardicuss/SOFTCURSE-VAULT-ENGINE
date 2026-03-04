@@ -151,6 +151,24 @@ namespace BorderlandsStorageCleaner
             }
         }
 
+        // Duplicates tab — browse for scan folder
+        private void BtnBrowseDupFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Select folder to scan for duplicates",
+                ShowNewFolderButton = false
+            };
+
+            if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                var mainVm = DataContext as MainWindowViewModel;
+                var analyzerVm = mainVm?.DiskAnalyzer;
+                if (analyzerVm != null)
+                    analyzerVm.DupRoot = dialog.SelectedPath;
+            }
+        }
+
         // Window chrome event handlers
 
         private void ResizeWindow(object sender, MouseButtonEventArgs e)
