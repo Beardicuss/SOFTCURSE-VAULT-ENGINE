@@ -721,6 +721,18 @@
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text=" Top-Level C:\\ Folder Sizes (read-only — use tabs below to delete)"
                                Foreground="#00FFFF" FontFamily="Consolas" FontWeight="Bold" FontSize="11" Margin="10,8"/>
+
+                    <!-- I7: Disk usage visualization -->
+                    <Border Grid.Row="0" Margin="10,30,10,0" VerticalAlignment="Bottom">
+                        <Grid Height="22" Margin="0,0,0,4">
+                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding DriveUsedPct, Mode=OneWay}"
+                                         Background="#1a0000" Foreground="#00FFFF" Height="22"
+                                         BorderBrush="#333" BorderThickness="1"/>
+                            <TextBlock Text="{Binding DriveInfo}" FontFamily="Consolas" FontSize="10" Foreground="#fff"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
                     <DataGrid Grid.Row="1" ItemsSource="{Binding TopFolders}">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
@@ -749,6 +761,8 @@
 
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <Button Content="🔄 Rescan" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="0,0,8,0"
+                                Command="{Binding RescanJunkCommand}"/>
                         <TextBlock Text="Filter: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
                         <ComboBox ItemsSource="{Binding JunkCategories}"
                                   SelectedItem="{Binding JunkFilter, Mode=TwoWay}"
@@ -762,6 +776,9 @@
                                 Command="{Binding DeselectAllJunkCommand}"/>
                         <Button Content="📋  SEND TO VAULT CLEANER" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="16,0,2,0"
                                 Command="{Binding SendJunkToVaultCommand}"/>
+                        <Button Content="📄 Export Report" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="8,0,0,0"
+                                Background="#001a1a" BorderBrush="#00FFFF" Foreground="#00FFFF"
+                                Command="{Binding ExportReportCommand}"/>
                     </StackPanel>
 
                     <!-- Grid with checkboxes -->
@@ -822,6 +839,8 @@
 
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <Button Content="🔄 Rescan" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="0,0,8,0"
+                                Command="{Binding RescanLargeCommand}"/>
                         <TextBlock Text="Drive: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
                         <ComboBox ItemsSource="{Binding AvailableDrives}"
                                   SelectedItem="{Binding SelectedDrive, Mode=TwoWay}"
@@ -830,10 +849,13 @@
                         <TextBlock Text="Min size: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
                         <ComboBox SelectedItem="{Binding MinFileSizeLabel, Mode=TwoWay}"
                                   Style="{StaticResource TechComboBox}"
-                                  Width="100" Margin="4,0,12,0">
+                                  Width="110" Margin="4,0,12,0">
                             <ComboBoxItem Content="10 MB"/><ComboBoxItem Content="50 MB"/>
                             <ComboBoxItem Content="100 MB" IsSelected="True"/>
                             <ComboBoxItem Content="500 MB"/><ComboBoxItem Content="1 GB"/>
+                            <ComboBoxItem Content="2 GB"/><ComboBoxItem Content="5 GB"/>
+                            <ComboBoxItem Content="10 GB"/><ComboBoxItem Content="20 GB"/>
+                            <ComboBoxItem Content="50 GB"/>
                         </ComboBox>
                         <Button Content="☑ Select All"  Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
                                 Command="{Binding SelectAllLargeCommand}"/>
@@ -898,6 +920,8 @@
 
                     <!-- Toolbar -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="10,6" Background="#050505">
+                        <Button Content="🔄 Rescan" Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="0,0,8,0"
+                                Command="{Binding RescanDupesCommand}"/>
                         <TextBlock Text="Scan folder: " Foreground="#888" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center"/>
                         <TextBox Text="{Binding DupRoot, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource TechTextBox}" Width="300" Margin="4,0,4,0"/>
@@ -1082,6 +1106,276 @@
         </Border>
     </Grid>
 </TabItem>
+
+<!-- ══ TAB 3: SUBSCRIPTION ══ -->
+<TabItem Header="  👑 SUBSCRIPTION  " Style="{StaticResource TechTabItem}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
+        <StackPanel Margin="30,20" MaxWidth="700">
+            <!-- Plan Status Banner -->
+            <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="2" Padding="20" Margin="0,0,0,20">
+                <Border.Effect>
+                    <DropShadowEffect Color="#00FFFF" BlurRadius="15" ShadowDepth="0" Opacity="0.3"/>
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="CURRENT PLAN" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
+                    <TextBlock Text="{Binding License.PlanDisplayName}" FontFamily="Consolas" FontSize="24" FontWeight="Bold" Foreground="#00FFFF"/>
+                    <TextBlock Text="{Binding License.StatusMessage}" FontFamily="Consolas" FontSize="11" Foreground="#4ade80" Margin="0,5,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- License Activation -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="ACTIVATE LICENSE" FontFamily="Consolas" FontSize="14" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,15"/>
+                    <TextBlock Text="Email:" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding LicenseEmailInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TechTextBox}" Margin="0,0,0,10"/>
+                    <TextBlock Text="License Key:" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding LicenseKeyInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TechTextBox}" Margin="0,0,0,10"
+                             FontFamily="Consolas"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <Button Content="🔑 ACTIVATE" Style="{StaticResource TechButton}" 
+                                Padding="16,6" Margin="0,0,8,0"
+                                Command="{Binding ActivateLicenseCommand}"/>
+                        <Button Content="✕ DEACTIVATE" Style="{StaticResource TechButton}"
+                                Padding="12,6" Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"
+                                Command="{Binding DeactivateLicenseCommand}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding LicenseMessage}" FontFamily="Consolas" FontSize="11" 
+                               Foreground="#fbbf24" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Feature Comparison -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20">
+                <StackPanel>
+                    <TextBlock Text="FEATURE COMPARISON" FontFamily="Consolas" FontSize="14" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,15"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="80"/>
+                            <ColumnDefinition Width="80"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <!-- Header -->
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="FREE" FontFamily="Consolas" FontSize="10" Foreground="#888" HorizontalAlignment="Center" FontWeight="Bold"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="PRO" FontFamily="Consolas" FontSize="10" Foreground="#00FFFF" HorizontalAlignment="Center" FontWeight="Bold"/>
+                        <!-- Rows -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Basic Cleanup" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Quick Scan" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Deep Scan Mode" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Duplicate Finder" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Large File Finder" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="5" Grid.Column="1" Text="Top 20" FontFamily="Consolas" FontSize="10" Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,4"/>
+                        <TextBlock Grid.Row="5" Grid.Column="2" Text="✅ All" FontFamily="Consolas" FontSize="10" Foreground="#4ade80" HorizontalAlignment="Center" Margin="0,4"/>
+                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Safe Delete Mode" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="6" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="6" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Auto-Updates" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
+                        <TextBlock Grid.Row="7" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                        <TextBlock Grid.Row="7" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</TabItem>
+
+<!-- ══ TAB 4: FAQ ══ -->
+<TabItem Header="  ❓ FAQ  " Style="{StaticResource TechTabItem}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
+        <StackPanel Margin="30,20" MaxWidth="800">
+            <TextBlock Text="FREQUENTLY ASKED QUESTIONS" FontFamily="Consolas" FontSize="16" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,20">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#00FFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- General -->
+            <TextBlock Text="─── GENERAL ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,10,0,8" FontWeight="Bold"/>
+            <Expander Header="What does Softcurse Vault Cleaner do?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Vault Cleaner is a comprehensive system optimization tool that removes temporary files, clears caches, finds duplicate files, identifies large files consuming disk space, and provides intelligent cleanup suggestions. It helps you reclaim valuable storage space and keep your system running smoothly."/>
+            </Expander>
+            <Expander Header="Is it safe to use?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Yes. The app only targets well-known temporary and cache locations. Items marked ✅ Safe are verified to be deletable without risk. Items marked ⚠ Review should be checked before deletion. You can also enable 'Safe Delete' mode which sends files to the Recycle Bin instead of permanently deleting them."/>
+            </Expander>
+            <Expander Header="Do I need administrator privileges?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Running as administrator is recommended for full functionality. Without admin rights, some system-level cleanup operations (like clearing Windows Update cache or Prefetch data) may not work. Use the '⚡ Restart as Admin' button in the title bar to elevate privileges."/>
+            </Expander>
+
+            <!-- Cleanup -->
+            <TextBlock Text="─── CLEANUP ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="What gets deleted during cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Depending on your configuration: temporary files (user and system TEMP), browser caches (Chrome, Edge, Firefox), Windows Update downloads, thumbnail caches, prefetch data, event logs, and any custom folders you specify."/>
+            </Expander>
+            <Expander Header="Can I undo a cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="If you enable 'Safe Delete (Recycle Bin)' mode in the configuration panel, deleted files go to the Recycle Bin and can be restored. Without this option, deletions are permanent. We recommend enabling Safe Delete for your first few cleanups."/>
+            </Expander>
+            <Expander Header="What is Deep Scan mode?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Deep Scan performs a more thorough analysis of your system, scanning additional locations and file types. It takes longer but can find significantly more recoverable space. This is a Pro feature."/>
+            </Expander>
+
+            <!-- Disk Analyzer -->
+            <TextBlock Text="─── DISK ANALYZER ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="How does the junk scanner work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="The junk scanner identifies known temporary and cache directories across your system, calculates their sizes, and categorizes them as Safe (✅) or Review (⚠). Safe items can be deleted without risk; Review items may contain data you want to keep."/>
+            </Expander>
+            <Expander Header="How does duplicate finder work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="The duplicate finder scans your chosen folder, groups files by size, then computes MD5 hashes for files with matching sizes. Files with identical hashes are exact duplicates. You can choose which copies to delete, keeping only the one you want."/>
+            </Expander>
+
+            <!-- Large Files -->
+            <TextBlock Text="─── LARGE FILES ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="How does the large file finder work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="It scans your selected drive for files exceeding your chosen minimum size (from 10 MB up to 50 GB). Results are sorted by size so you can quickly identify the biggest space consumers. You can select files to delete or send them to the Vault Cleaner for later processing."/>
+            </Expander>
+            <Expander Header="Will it delete system files?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="The app will not automatically delete anything. The Large Files tab is an information tool — it shows you what's using space, and YOU decide what to delete. Always review file paths before deleting. Avoid deleting files from Windows, Program Files, or other system directories."/>
+            </Expander>
+
+            <!-- Subscription -->
+            <TextBlock Text="─── SUBSCRIPTION ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="How do I activate my Pro license?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Go to the 👑 Subscription tab, enter your email and license key, then click 'Activate'. Your license will be stored locally and you'll immediately gain access to all Pro features."/>
+            </Expander>
+            <Expander Header="How do I cancel or renew?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="License management is handled through the Softcurse website. Visit your account dashboard to cancel, renew, or upgrade your subscription. To deactivate locally, use the 'Deactivate' button on the Subscription tab."/>
+            </Expander>
+
+            <!-- Troubleshooting -->
+            <TextBlock Text="─── TROUBLESHOOTING ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="The app won't start or crashes on launch" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Ensure you have .NET 8 Runtime installed. If the WebView2 component fails to initialize, the app will still work but without animated loaders. Try running as administrator. If issues persist, delete the settings file at %APPDATA%\SoftcurseVaultCleaner\settings.json and restart."/>
+            </Expander>
+            <Expander Header="Cleanup failed or some files weren't deleted" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Some files may be locked by running processes. Close browsers and background applications before cleaning. Running as administrator helps access system-level directories. Check the System Log for specific error messages."/>
+            </Expander>
+        </StackPanel>
+    </ScrollViewer>
+</TabItem>
+
+<!-- ══ TAB 5: SETTINGS ══ -->
+<TabItem Header="  ⚙️ SETTINGS  " Style="{StaticResource TechTabItem}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
+        <StackPanel Margin="30,20" MaxWidth="700">
+            <TextBlock Text="APPLICATION SETTINGS" FontFamily="Consolas" FontSize="16" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,20">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#00FFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.5"/>
+                </TextBlock.Effect>
+            </TextBlock>
+
+            <!-- General Settings -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="GENERAL" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,12"/>
+                    <CheckBox Content="Check for updates on startup" 
+                              Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.CheckUpdatesOnStartup}"/>
+                    <CheckBox Content="Start minimized"
+                              Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.StartMinimized}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Cleanup Defaults -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="CLEANUP DEFAULTS" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,12"/>
+                    <TextBlock Text="These settings are applied when the app starts:" FontFamily="Consolas" FontSize="10" Foreground="#666" Margin="0,0,0,8"/>
+                    <CheckBox Content="Clean temporary files" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanTemp}"/>
+                    <CheckBox Content="Clear application cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanCache}"/>
+                    <CheckBox Content="Remove old log files" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanLogs}"/>
+                    <CheckBox Content="Empty recycle bin" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanRecycleBin}"/>
+                    <CheckBox Content="Clear prefetch data" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanPrefetch}"/>
+                    <CheckBox Content="Safe delete (Recycle Bin)" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultUseRecycleBin}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="APPEARANCE" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <TextBlock Text="Log font size: " FontFamily="Consolas" FontSize="11" Foreground="#888" VerticalAlignment="Center"/>
+                        <Slider Minimum="8" Maximum="24" Width="150" 
+                                Value="{Binding Settings.LogFontSize}" 
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                Margin="8,0"/>
+                        <TextBlock Text="{Binding Settings.LogFontSize, StringFormat={}{0} pt}" 
+                                   FontFamily="Consolas" FontSize="11" Foreground="#00FFFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Updates -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="UPDATES" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,12"/>
+                    <TextBlock Text="{Binding UpdateStatus}" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="🔄 Check for Updates" Style="{StaticResource TechButton}" 
+                                Padding="12,6" Margin="0,0,8,0"
+                                Command="{Binding CheckForUpdatesCommand}"/>
+                        <Button Content="⬇ Download Update" Style="{StaticResource TechButton}"
+                                Padding="12,6" Background="#001a10" BorderBrush="#4ade80" Foreground="#4ade80"
+                                Command="{Binding OpenDownloadCommand}"
+                                Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVisibility}}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Reset + About -->
+            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20">
+                <StackPanel>
+                    <TextBlock Text="ABOUT" FontFamily="Consolas" FontSize="13" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,12"/>
+                    <TextBlock FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,2">
+                        <Run Text="Softcurse Vault Cleaner v"/>
+                        <Run Text="{Binding AppVersion, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock Text="© 2026 Softcurse. All rights reserved." FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2"/>
+                    <TextBlock Text=".NET 8.0 • WPF • Windows" FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2,0,12"/>
+                    <Button Content="🔄 Reset All Settings to Defaults" Style="{StaticResource TechButton}"
+                            Padding="12,6" Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"
+                            Command="{Binding ResetSettingsCommand}"
+                            HorizontalAlignment="Left"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</TabItem>
+
                         </TabControl>
                     </Grid>
                 </Grid>

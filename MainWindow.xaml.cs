@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Runtime.InteropServices;
+using Forms = System.Windows.Forms;
 
 namespace SoftcurseVaultCleaner
 {
@@ -16,6 +17,9 @@ namespace SoftcurseVaultCleaner
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "SoftcurseVaultCleaner", "Logs");
         private string logFile;
+
+        // System tray icon
+        private Forms.NotifyIcon _trayIcon;
 
         // Window resizing variables
         private const int WM_SYSCOMMAND = 0x112;
@@ -42,6 +46,14 @@ namespace SoftcurseVaultCleaner
 
             logFile = Path.Combine(logDir, $"cleanup-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             InitializeUI();
+            InitializeTrayIcon();
+
+            // Start minimized if setting enabled
+            if (AppSettings.Instance.StartMinimized)
+            {
+                this.WindowState = WindowState.Minimized;
+                this.ShowInTaskbar = false;
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -100,9 +112,79 @@ namespace SoftcurseVaultCleaner
                 if (btnRestartAdmin != null) btnRestartAdmin.Visibility = Visibility.Visible;
             }
 
-            LogMessage("=== SOFTCURSE VAULT CLEANER v2.3 INITIALIZED ===");
+            LogMessage("=== SOFTCURSE VAULT CLEANER v3.0 INITIALIZED ===");
             LogMessage("SYSTEM: MVVM architecture active");
             LogMessage("READY: Awaiting cleanup protocol initiation");
+
+            // First-run onboarding
+            CheckFirstRun();
+        }
+
+        private void CheckFirstRun()
+        {
+            if (!AppSettings.Instance.HasCompletedFirstRun)
+            {
+                AppSettings.Instance.HasCompletedFirstRun = true;
+                MessageBox.Show(
+                    "Welcome to Softcurse Vault Cleaner! \u267b\n\n" +
+                    "\u2022 \ud83e\uddf9 VAULT CLEANER \u2014 Quick cleanup of temp files, caches, and logs\n" +
+                    "\u2022 \ud83d\udcbd DISK ANALYZER \u2014 Deep scan with junk finder, duplicates, and large files\n" +
+                    "\u2022 \ud83d\udc51 SUBSCRIPTION \u2014 Unlock Pro features with a license key\n" +
+                    "\u2022 \u2753 FAQ \u2014 Common questions and answers\n" +
+                    "\u2022 \u2699\ufe0f SETTINGS \u2014 Customize your cleanup preferences\n\n" +
+                    "TIP: Run as Administrator for full cleanup access.\n" +
+                    "TIP: Close the app to minimize to the system tray.",
+                    "Welcome to Vault Cleaner", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        private void InitializeTrayIcon()
+        {
+            _trayIcon = new Forms.NotifyIcon
+            {
+                Text = "Softcurse Vault Cleaner",
+                Visible = false
+            };
+
+            // Use the application icon — check Resources\ subfolder first (CopyToOutputDirectory layout)
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string iconPath = Path.Combine(baseDir, "Resources", "vault.ico");
+                if (!File.Exists(iconPath))
+                    iconPath = Path.Combine(baseDir, "vault.ico");
+                if (File.Exists(iconPath))
+                    _trayIcon.Icon = new System.Drawing.Icon(iconPath);
+                else
+                    _trayIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+            catch { _trayIcon.Icon = System.Drawing.SystemIcons.Application; }
+
+            // Context menu
+            var menu = new Forms.ContextMenuStrip();
+            menu.Items.Add("\ud83d\udcc2 Open", null, (s, e) => RestoreFromTray());
+            menu.Items.Add(new Forms.ToolStripSeparator());
+            menu.Items.Add("\u274c Exit", null, (s, e) => ExitApplication());
+            _trayIcon.ContextMenuStrip = menu;
+
+            // Double-click to restore
+            _trayIcon.DoubleClick += (s, e) => RestoreFromTray();
+        }
+
+        private void RestoreFromTray()
+        {
+            this.Show();
+            this.WindowState = WindowState.Normal;
+            this.ShowInTaskbar = true;
+            _trayIcon.Visible = false;
+            this.Activate();
+        }
+
+        private void ExitApplication()
+        {
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+            Application.Current.Shutdown();
         }
 
         private bool IsAdministrator()
@@ -263,7 +345,17 @@ namespace SoftcurseVaultCleaner
 
         private void CloseWindow(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown();
+            // Minimize to tray instead of closing
+            this.Hide();
+            this.ShowInTaskbar = false;
+            _trayIcon.Visible = true;
+            _trayIcon.ShowBalloonTip(2000, "Vault Cleaner", "App minimized to tray. Double-click to restore.", Forms.ToolTipIcon.Info);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _trayIcon?.Dispose();
+            base.OnClosed(e);
         }
     }
 }

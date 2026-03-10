@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -64,6 +65,10 @@ namespace SoftcurseVaultCleaner
         public int    Progress       { get => _progress;  set { _progress  = value; RaisePC(nameof(Progress));  } }
         public string Status         { get => _status;    set { _status    = value; RaisePC(nameof(Status));    } }
         public string DriveInfo      { get => _driveInfo; set { _driveInfo = value; RaisePC(nameof(DriveInfo)); } }
+        
+        private double _driveUsedPct;
+        public double DriveUsedPct { get => _driveUsedPct; set { _driveUsedPct = value; RaisePC(nameof(DriveUsedPct)); } }
+        
         public string Suggestions    { get => _suggestions; set { _suggestions = value; RaisePC(nameof(Suggestions)); } }
 
         public string JunkFilter
@@ -135,6 +140,14 @@ namespace SoftcurseVaultCleaner
         public ICommand SendJunkToVaultCommand  { get; }
         public ICommand SendLargeToVaultCommand { get; }
 
+        // Per-tab rescan (I3)
+        public ICommand RescanJunkCommand  { get; }
+        public ICommand RescanLargeCommand { get; }
+        public ICommand RescanDupesCommand { get; }
+
+        // Export
+        public ICommand ExportReportCommand { get; }
+
         // Callback set by MainWindowViewModel to bridge into Vault Cleaner
         public Action<System.Collections.Generic.IEnumerable<string>> SendPathsToVaultCallback { get; set; }
 
@@ -168,6 +181,14 @@ namespace SoftcurseVaultCleaner
 
             SendJunkToVaultCommand  = new RelayCommand(ExecuteSendJunkToVault,  () => !IsScanning);
             SendLargeToVaultCommand = new RelayCommand(ExecuteSendLargeToVault, () => !IsScanning);
+
+            // Per-tab rescan (I3)
+            RescanJunkCommand  = new RelayCommand(RescanJunk,  () => !IsScanning);
+            RescanLargeCommand = new RelayCommand(RescanLarge, () => !IsScanning);
+            RescanDupesCommand = new RelayCommand(RescanDupes, () => !IsScanning && !string.IsNullOrEmpty(DupRoot));
+
+            // Export
+            ExportReportCommand = new RelayCommand(ExportReport, () => !IsScanning);
 
             PopulateAvailableDrives();
             RefreshDriveInfo();
@@ -589,8 +610,13 @@ namespace SoftcurseVaultCleaner
                 double total = d.TotalSize          / 1073741824.0;
                 double pct   = (total - free) / total * 100;
                 DriveInfo = $"{drive.TrimEnd('\\')}   {free:F1} GB FREE  /  {total:F1} GB TOTAL   ({pct:F1}% USED)";
+                DriveUsedPct = pct;
             }
-            catch { DriveInfo = $"{_selectedDrive} — unable to read drive info"; }
+            catch
+            {
+                DriveInfo = $"{_selectedDrive} — unable to read drive info";
+                DriveUsedPct = 0;
+            }
         }
 
         private long ParseMinSize(string label)
@@ -599,6 +625,11 @@ namespace SoftcurseVaultCleaner
             if (label == "50 MB")  return 50L  * 1024 * 1024;
             if (label == "500 MB") return 500L * 1024 * 1024;
             if (label == "1 GB")   return 1L   * 1024 * 1024 * 1024;
+            if (label == "2 GB")   return 2L   * 1024 * 1024 * 1024;
+            if (label == "5 GB")   return 5L   * 1024 * 1024 * 1024;
+            if (label == "10 GB")  return 10L  * 1024 * 1024 * 1024;
+            if (label == "20 GB")  return 20L  * 1024 * 1024 * 1024;
+            if (label == "50 GB")  return 50L  * 1024 * 1024 * 1024;
             return 100L * 1024 * 1024;
         }
 
@@ -606,6 +637,155 @@ namespace SoftcurseVaultCleaner
         {
             if (string.IsNullOrEmpty(path)) return;
             try { Process.Start("explorer.exe", $"/select,\"{path}\""); } catch { }
+        }
+
+        // ── Per-tab rescan (I3) ────────────────────────────────────────────
+
+        private async void RescanJunk()
+        {
+            IsScanning = true; Progress = 0;
+            JunkItems.Clear(); JunkFiltered.Clear(); SuggestionItems.Clear();
+            _cts = new CancellationTokenSource();
+            long minBytes = ParseMinSize(MinFileSizeLabel);
+            try
+            {
+                var result = await _svc.RunFullScanAsync(
+                    minBytes, SelectedDrive,
+                    msg => Dispatch(() => Status = msg),
+                    pct => Dispatch(() => Progress = pct),
+                    _cts.Token);
+
+                Dispatch(() =>
+                {
+                    foreach (var r in result.JunkTargets)
+                    {
+                        JunkItems.Add(r);
+                        r.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateJunkSelectedSize(); };
+                    }
+                    foreach (var r in result.JunkTargets)
+                    {
+                        var clone = new JunkTarget
+                        {
+                            Label = r.Label, FullPath = r.FullPath, Size = r.Size,
+                            Safe = r.Safe, Category = r.Category, Note = r.Note,
+                            IsFile = r.IsFile, IsChecked = r.Safe
+                        };
+                        clone.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateSuggSelectedSize(); };
+                        SuggestionItems.Add(clone);
+                    }
+                    ApplyJunkFilter();
+                    UpdateSuggSelectedSize();
+                    SafeTotalStr = SizeFormatter.Format(result.TotalJunkSafe);
+                    ReviewTotalStr = SizeFormatter.Format(result.TotalJunkReview);
+                    Status = $"Junk rescan complete ✓ — {result.JunkTargets.Count} locations found";
+                });
+            }
+            catch (OperationCanceledException) { Dispatch(() => Status = "Rescan cancelled."); }
+            finally { Dispatch(() => IsScanning = false); }
+        }
+
+        private async void RescanLarge()
+        {
+            IsScanning = true; Progress = 0;
+            LargeFiles.Clear();
+            _cts = new CancellationTokenSource();
+            long minBytes = ParseMinSize(MinFileSizeLabel);
+            try
+            {
+                var result = await _svc.RunFullScanAsync(
+                    minBytes, SelectedDrive,
+                    msg => Dispatch(() => Status = msg),
+                    pct => Dispatch(() => Progress = pct),
+                    _cts.Token);
+
+                Dispatch(() =>
+                {
+                    foreach (var r in result.LargeFiles)
+                    {
+                        LargeFiles.Add(r);
+                        r.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(LargeFileResult.IsChecked)) UpdateLargeSelectedSize(); };
+                    }
+                    LargeCountStr = $"{result.LargeFiles.Count} files";
+                    Status = $"Large files rescan complete ✓ — {result.LargeFiles.Count} files found";
+                });
+            }
+            catch (OperationCanceledException) { Dispatch(() => Status = "Rescan cancelled."); }
+            finally { Dispatch(() => IsScanning = false); }
+        }
+
+        private void RescanDupes()
+        {
+            StartDupScan();
+        }
+
+        // ── Export report ──────────────────────────────────────────────────
+
+        private void ExportReport()
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog
+            {
+                FileName = $"VaultCleaner_Report_{DateTime.Now:yyyyMMdd_HHmmss}",
+                DefaultExt = ".txt",
+                Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("════════════════════════════════════════════════");
+            sb.AppendLine("   SOFTCURSE VAULT CLEANER — SCAN REPORT");
+            sb.AppendLine($"   Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine("════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            // Drive info
+            sb.AppendLine($"Drive: {DriveInfo}");
+            sb.AppendLine();
+
+            // Junk
+            sb.AppendLine($"── JUNK ITEMS ({JunkItems.Count}) ──");
+            foreach (var j in JunkItems)
+                sb.AppendLine($"  [{(j.Safe ? "SAFE" : "REVIEW")}] {j.Label,-40} {j.SizeStr,12}  {j.FullPath}");
+            sb.AppendLine();
+
+            // Large files
+            sb.AppendLine($"── LARGE FILES ({LargeFiles.Count}) ──");
+            foreach (var f in LargeFiles)
+                sb.AppendLine($"  {f.SizeStr,12}  {f.Path}");
+            sb.AppendLine();
+
+            // Duplicates
+            if (DupeRows.Count > 0)
+            {
+                sb.AppendLine($"── DUPLICATES ({DupeRows.Count(r => r.IsDupe)} duplicate files) ──");
+                foreach (var r in DupeRows)
+                {
+                    string prefix = r.IsHeader ? "[KEEP]" : "[DUPE]";
+                    sb.AppendLine($"  {prefix} {SizeFormatter.Format(r.FileSize),12}  {r.FilePath}");
+                }
+                sb.AppendLine();
+            }
+
+            // Summary
+            sb.AppendLine("── SUMMARY ──");
+            sb.AppendLine($"  Safe junk total:   {SafeTotalStr}");
+            sb.AppendLine($"  Review junk total: {ReviewTotalStr}");
+            sb.AppendLine($"  Large files:       {LargeCountStr}");
+            sb.AppendLine($"  Programs:          {ProgCountStr}");
+
+            try
+            {
+                File.WriteAllText(dlg.FileName, sb.ToString());
+                Status = $"Report exported to {dlg.FileName}";
+                MessageBox.Show($"Report saved to:\n{dlg.FileName}", "Export Complete",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Status = $"Export failed: {ex.Message}";
+                MessageBox.Show($"Export failed:\n{ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void Dispatch(Action a) =>

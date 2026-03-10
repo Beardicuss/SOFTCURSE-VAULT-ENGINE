@@ -63,10 +63,10 @@ namespace SoftcurseVaultCleaner
             _statusCallback = statusCallback;
             _logCallback = logCallback;
 
-            await Task.Run(() => ExecuteCleanupProtocol(config, token), token);
+            await Task.Run(async () => await ExecuteCleanupProtocol(config, token), token);
         }
 
-        private void ExecuteCleanupProtocol(CleanupConfig config, CancellationToken token = default)
+        private async Task ExecuteCleanupProtocol(CleanupConfig config, CancellationToken token = default)
         {
             bool ShouldStop() => _abortRequested || token.IsCancellationRequested;
             LogStatus("=== INITIATING CLEANUP PROTOCOL ===");
@@ -82,43 +82,43 @@ namespace SoftcurseVaultCleaner
                 LogStatus("WARNING: No suitable target drive found. Pagefile/restore relocation skipped.");
             }
 
-            // Build task list based on config
-            var tasks = new List<(string Name, Action Task)>();
+            // Build task list based on config — uses Func<Task> for async support
+            var tasks = new List<(string Name, Func<Task> Task)>();
 
             if (config.CleanRecycleBin)
-                tasks.Add(("Recycle Bin Incineration", CleanRecycleBin));
+                tasks.Add(("Recycle Bin Incineration", () => { CleanRecycleBin(); return Task.CompletedTask; }));
 
             if (config.CleanTempFiles)
-                tasks.Add(("TEMP Files Purge", CleanTempFolders));
+                tasks.Add(("TEMP Files Purge", () => { CleanTempFolders(); return Task.CompletedTask; }));
 
             if (config.CleanCache)
             {
-                tasks.Add(("PYTHON PIP Cache Purge", CleanPipCache));
-                tasks.Add(("Thumbnail Cache Clean", CleanThumbnailCache));
-                tasks.Add(("Windows Update Cache Flush", CleanWindowsUpdateCache));
-                tasks.Add(("UWP App Cache Clean", CleanMicrosoftStoreCache));
-                tasks.Add(("Driver Cache Purge", CleanDriverCachesTask));
-                tasks.Add(("Unreal Engine Purge", CleanUnrealEngineCache));
-                tasks.Add(("Android SDK Clean", CleanAndroidSDK));
-                tasks.Add(("Browser Data Wipe", CleanBrowserCaches));
+                tasks.Add(("PYTHON PIP Cache Purge", () => { CleanPipCache(); return Task.CompletedTask; }));
+                tasks.Add(("Thumbnail Cache Clean", () => { CleanThumbnailCache(); return Task.CompletedTask; }));
+                tasks.Add(("Windows Update Cache Flush", CleanWindowsUpdateCacheAsync));
+                tasks.Add(("UWP App Cache Clean", () => { CleanMicrosoftStoreCache(); return Task.CompletedTask; }));
+                tasks.Add(("Driver Cache Purge", () => { CleanDriverCachesTask(); return Task.CompletedTask; }));
+                tasks.Add(("Unreal Engine Purge", () => { CleanUnrealEngineCache(); return Task.CompletedTask; }));
+                tasks.Add(("Android SDK Clean", () => { CleanAndroidSDK(); return Task.CompletedTask; }));
+                tasks.Add(("Browser Data Wipe", () => { CleanBrowserCaches(); return Task.CompletedTask; }));
             }
 
             if (config.CleanLogs)
-                tasks.Add(("Event Log Scrub", CleanEventLogs));
+                tasks.Add(("Event Log Scrub", () => { CleanEventLogs(); return Task.CompletedTask; }));
 
             if (config.CleanPrefetch)
-                tasks.Add(("Font Cache Rebuild", RebuildFontCache));
+                tasks.Add(("Font Cache Rebuild", RebuildFontCacheAsync));
 
             if (config.DeepScanMode)
             {
-                tasks.Add(("DISM Cleanup", RunDISMCleanup));
-                tasks.Add(("Orphaned Installer Removal", RemoveOrphanedInstallersTask));
+                tasks.Add(("DISM Cleanup", RunDISMCleanupAsync));
+                tasks.Add(("Orphaned Installer Removal", () => { RemoveOrphanedInstallersTask(); return Task.CompletedTask; }));
             }
 
             // Custom paths from user
             if (config.CustomPaths != null && config.CustomPaths.Count > 0)
             {
-                tasks.Add(("Custom Folder Cleanup", () => CleanCustomPaths(config.CustomPaths)));
+                tasks.Add(("Custom Folder Cleanup", () => { CleanCustomPaths(config.CustomPaths); return Task.CompletedTask; }));
             }
 
             // Execute tasks with evenly distributed progress (5% to 95%)
@@ -131,14 +131,14 @@ namespace SoftcurseVaultCleaner
                     ? 5 + (int)((i / (double)(totalTasks - 1)) * 90)
                     : 50;
 
-                ExecuteTask(tasks[i].Name, tasks[i].Task, progress);
+                await ExecuteTaskAsync(tasks[i].Name, tasks[i].Task, progress);
             }
 
             // Pagefile and System Restore (only with deep scan + confirmation already in UI)
             if (!ShouldStop() && selectedDrive != null && config.DeepScanMode)
             {
-                ExecuteTask("Pagefile Configuration", () => ConfigurePagefile(selectedDrive.DriveLetter), 98);
-                ExecuteTask("System Restore Relocation", () => MoveSystemRestore(selectedDrive.DriveLetter), 99);
+                await ExecuteTaskAsync("Pagefile Configuration", () => { ConfigurePagefile(selectedDrive.DriveLetter); return Task.CompletedTask; }, 98);
+                await ExecuteTaskAsync("System Restore Relocation", () => MoveSystemRestoreAsync(selectedDrive.DriveLetter), 99);
             }
 
             if (!ShouldStop())
@@ -156,7 +156,7 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private void ExecuteTask(string taskName, Action task, int progress)
+        private async Task ExecuteTaskAsync(string taskName, Func<Task> task, int progress)
         {
             if (_abortRequested) return;
 
@@ -165,7 +165,7 @@ namespace SoftcurseVaultCleaner
             LogStatus($"EXECUTING: {taskName}");
             try
             {
-                task.Invoke();
+                await task();
                 LogStatus($"COMPLETED: {taskName}");
             }
             catch (Exception ex)
@@ -224,13 +224,13 @@ namespace SoftcurseVaultCleaner
             catch (Exception ex) { LogStatus($"Microsoft Store cache failed: {ex.Message}"); }
         }
 
-        private void CleanWindowsUpdateCache()
+        private async Task CleanWindowsUpdateCacheAsync()
         {
             try
             {
-                StopService("wuauserv");
+                await StopServiceAsync("wuauserv");
                 CleanDirectory(@"C:\Windows\SoftwareDistribution\Download", "Windows Update Cache");
-                StartService("wuauserv");
+                await StartServiceAsync("wuauserv");
             }
             catch (Exception ex) { LogStatus($"Windows Update cache failed: {ex.Message}"); }
         }
@@ -325,12 +325,12 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private void RunDISMCleanup()
+        private async Task RunDISMCleanupAsync()
         {
             try
             {
-                RunCommand("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup");
-                RunCommand("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup /ResetBase");
+                await RunCommandAsync("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup");
+                await RunCommandAsync("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup /ResetBase");
             }
             catch (Exception ex) { LogStatus($"DISM failed: {ex.Message}"); }
         }
@@ -391,13 +391,13 @@ namespace SoftcurseVaultCleaner
             catch (Exception ex) { LogStatus($"Thumbnail cache cleanup failed: {ex.Message}"); }
         }
 
-        private void RebuildFontCache()
+        private async Task RebuildFontCacheAsync()
         {
             LogStatus("Rebuilding font cache...");
             try
             {
-                StopService("FontCache");
-                Thread.Sleep(2000);
+                await StopServiceAsync("FontCache");
+                await Task.Delay(2000);
 
                 string fontCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "FontCache");
                 if (Directory.Exists(fontCache))
@@ -405,7 +405,7 @@ namespace SoftcurseVaultCleaner
                     CleanDirectory(fontCache, "Font Cache");
                 }
 
-                StartService("FontCache");
+                await StartServiceAsync("FontCache");
                 LogStatus("Font cache rebuilt successfully using service");
             }
             catch (Exception ex)
@@ -547,13 +547,13 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private void MoveSystemRestore(string targetDrive)
+        private async Task MoveSystemRestoreAsync(string targetDrive)
         {
             try
             {
-                RunCommand("vssadmin", $"delete shadows /for=C: /all /quiet");
+                await RunCommandAsync("vssadmin", $"delete shadows /for=C: /all /quiet");
                 string maxSize = "10GB";
-                RunCommand("vssadmin", $"Resize ShadowStorage /For=C: /On={targetDrive}: /MaxSize={maxSize}");
+                await RunCommandAsync("vssadmin", $"Resize ShadowStorage /For=C: /On={targetDrive}: /MaxSize={maxSize}");
                 LogStatus($"SYSTEM RESTORE: Moved to {targetDrive}:");
             }
             catch (Exception ex) { LogStatus($"System Restore move failed: {ex.Message}"); }
@@ -606,7 +606,7 @@ namespace SoftcurseVaultCleaner
         /// <summary>
         /// Runs an external command with proper async output handling to prevent deadlocks.
         /// </summary>
-        private void RunCommand(string fileName, string arguments)
+        private async Task RunCommandAsync(string fileName, string arguments)
         {
             try
             {
@@ -629,7 +629,13 @@ namespace SoftcurseVaultCleaner
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
 
-                    if (!process.WaitForExit(60000)) // 60 seconds timeout
+                    // Use async wait with timeout via CancellationTokenSource
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                    try
+                    {
+                        await process.WaitForExitAsync(timeoutCts.Token);
+                    }
+                    catch (OperationCanceledException)
                     {
                         try { process.Kill(); } catch { }
                         LogStatus($"COMMAND TIMEOUT: {fileName} {arguments}");
@@ -648,7 +654,7 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private void StopService(string serviceName)
+        private async Task StopServiceAsync(string serviceName)
         {
             try
             {
@@ -659,7 +665,9 @@ namespace SoftcurseVaultCleaner
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = true;
                     process.Start();
-                    if (!process.WaitForExit(15000))
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    try { await process.WaitForExitAsync(cts.Token); }
+                    catch (OperationCanceledException)
                     {
                         try { process.Kill(); } catch { }
                         LogStatus($"SERVICE STOP TIMEOUT: {serviceName}");
@@ -672,7 +680,7 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private void StartService(string serviceName)
+        private async Task StartServiceAsync(string serviceName)
         {
             try
             {
@@ -683,7 +691,9 @@ namespace SoftcurseVaultCleaner
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.CreateNoWindow = true;
                     process.Start();
-                    if (!process.WaitForExit(15000))
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    try { await process.WaitForExitAsync(cts.Token); }
+                    catch (OperationCanceledException)
                     {
                         try { process.Kill(); } catch { }
                         LogStatus($"SERVICE START TIMEOUT: {serviceName}");
