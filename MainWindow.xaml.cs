@@ -60,8 +60,13 @@ namespace SoftcurseVaultCleaner
         {
             try
             {
-                await loaderStandby.EnsureCoreWebView2Async();
-                await loaderActive.EnsureCoreWebView2Async();
+                // Fix for Error: We couldn't create the data directory.
+                // Redirects WebView2's data folder from the local Program Files dir to LocalAppData.
+                string userDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SoftcurseVaultCleaner", "WebView2");
+                var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(null, userDataFolder);
+
+                await loaderStandby.EnsureCoreWebView2Async(env);
+                await loaderActive.EnsureCoreWebView2Async(env);
 
                 loaderStandby.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 loaderStandby.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -341,15 +346,14 @@ namespace SoftcurseVaultCleaner
         private void MinimizeWindow(object sender, RoutedEventArgs e)
         {
             this.WindowState = WindowState.Minimized;
+            this.Hide();
+            this.ShowInTaskbar = false;
+            _trayIcon.Visible = true;
         }
 
         private void CloseWindow(object sender, RoutedEventArgs e)
         {
-            // Minimize to tray instead of closing
-            this.Hide();
-            this.ShowInTaskbar = false;
-            _trayIcon.Visible = true;
-            _trayIcon.ShowBalloonTip(2000, "Vault Cleaner", "App minimized to tray. Double-click to restore.", Forms.ToolTipIcon.Info);
+            ExitApplication();
         }
 
         protected override void OnClosed(EventArgs e)

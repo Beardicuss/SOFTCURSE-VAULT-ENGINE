@@ -71,6 +71,13 @@ namespace SoftcurseVaultCleaner
         private bool _cleanPrefetch = true;
         private bool _deepScanMode = false;
         private bool _useRecycleBin = false;
+        
+        // Advanced cleanup properties
+        private bool _cleanDevTools = false;
+        private bool _cleanGaming = false;
+        private bool _cleanSystemDumps = false;
+        private bool _cleanDNS = false;
+        private bool _cleanExtreme = false;
 
         // Timer and stats properties
         private string _timeElapsed = "Time: 00:00";
@@ -85,10 +92,13 @@ namespace SoftcurseVaultCleaner
 
         // Timer for elapsed time tracking
         private DispatcherTimer _cleanupTimer;
+        private DispatcherTimer _autoCleanTimer;
+        private DateTime _lastAutoCleanTime;
         private Stopwatch _cleanupStopwatch;
 
         // ── Disk Analyzer sub-ViewModel ───────────────────────────────────────
         public DiskAnalyzerViewModel DiskAnalyzer { get; }
+        public AutoTuneViewModel AutoTune { get; }
 
         public MainWindowViewModel()
         {
@@ -96,6 +106,7 @@ namespace SoftcurseVaultCleaner
             _status = "STANDBY";
             _customFolders = new ObservableCollection<string>();
             DiskAnalyzer = new DiskAnalyzerViewModel();
+            AutoTune = new AutoTuneViewModel();
             // Wire "Send to Vault" callback: adds paths into CustomFolders list
             DiskAnalyzer.SendPathsToVaultCallback = paths =>
             {
@@ -149,6 +160,25 @@ namespace SoftcurseVaultCleaner
                 // Refresh disk space during cleanup
                 DiskSpace = GetDiskFreeSpace();
             };
+
+            // Setup AutoClean timer (checks every 5 mins)
+            _lastAutoCleanTime = DateTime.Now;
+            _autoCleanTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+            _autoCleanTimer.Tick += AutoCleanTick;
+            _autoCleanTimer.Start();
+        }
+
+        private async void AutoCleanTick(object sender, EventArgs e)
+        {
+            if (!AutoTune.EnableAutoClean || IsCleaning) return;
+            if ((DateTime.Now - _lastAutoCleanTime).TotalHours >= 4)
+            {
+                if (System.Windows.Application.Current.MainWindow != null && System.Windows.Application.Current.MainWindow.Visibility == System.Windows.Visibility.Hidden)
+                {
+                    _lastAutoCleanTime = DateTime.Now;
+                    await System.Threading.Tasks.Task.Run(() => StartCleaning());
+                }
+            }
         }
 
         public bool IsCleaning
@@ -236,6 +266,34 @@ namespace SoftcurseVaultCleaner
             set { if (_useRecycleBin != value) { _useRecycleBin = value; OnPropertyChanged(nameof(UseRecycleBin)); } }
         }
 
+        public bool CleanDevTools
+        {
+            get => _cleanDevTools;
+            set { if (_cleanDevTools != value) { _cleanDevTools = value; OnPropertyChanged(nameof(CleanDevTools)); } }
+        }
+
+        public bool CleanGaming
+        {
+            get => _cleanGaming;
+            set { if (_cleanGaming != value) { _cleanGaming = value; OnPropertyChanged(nameof(CleanGaming)); } }
+        }
+
+        public bool CleanSystemDumps
+        {
+            get => _cleanSystemDumps;
+            set { if (_cleanSystemDumps != value) { _cleanSystemDumps = value; OnPropertyChanged(nameof(CleanSystemDumps)); } }
+        }
+
+        public bool CleanDNS
+        {
+            get => _cleanDNS;
+            set { if (_cleanDNS != value) { _cleanDNS = value; OnPropertyChanged(nameof(CleanDNS)); } }
+        }
+        public bool CleanExtreme
+        {
+            get => _cleanExtreme;
+            set { if (_cleanExtreme != value) { _cleanExtreme = value; OnPropertyChanged(nameof(CleanExtreme)); } }
+        }
 
         public string TimeElapsed
         {
@@ -326,6 +384,11 @@ namespace SoftcurseVaultCleaner
                 CleanPrefetch = CleanPrefetch,
                 DeepScanMode = DeepScanMode,
                 UseRecycleBin = UseRecycleBin,
+                CleanDevTools = CleanDevTools,
+                CleanGaming = CleanGaming,
+                CleanSystemDumps = CleanSystemDumps,
+                CleanDNS = CleanDNS,
+                CleanExtreme = CleanExtreme,
                 CustomPaths = CustomFolders.ToList()
             };
         }
@@ -528,6 +591,12 @@ namespace SoftcurseVaultCleaner
             CleanRecycleBin = Settings.DefaultCleanRecycleBin;
             CleanPrefetch = Settings.DefaultCleanPrefetch;
             UseRecycleBin = Settings.DefaultUseRecycleBin;
+            
+            CleanDevTools = Settings.DefaultCleanDevTools;
+            CleanGaming = Settings.DefaultCleanGaming;
+            CleanSystemDumps = Settings.DefaultCleanSystemDumps;
+            CleanDNS = Settings.DefaultCleanDNS;
+            CleanExtreme = Settings.DefaultCleanExtreme;
         }
 
         public string AppVersion => UpdateService.GetCurrentVersion();

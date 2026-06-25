@@ -22,7 +22,16 @@ namespace SoftcurseVaultCleaner
         public bool CleanPrefetch { get; set; } = true;
         public bool DeepScanMode { get; set; } = false;
         public bool UseRecycleBin { get; set; } = false;
+        
+        // New advanced categories
+        public bool CleanDevTools { get; set; } = false;
+        public bool CleanGaming { get; set; } = false;
+        public bool CleanSystemDumps { get; set; } = false;
+        public bool CleanDNS { get; set; } = false;
+        public bool CleanExtreme { get; set; } = false;
+
         public List<string> CustomPaths { get; set; } = new List<string>();
+
     }
 
     /// <summary>
@@ -107,7 +116,25 @@ namespace SoftcurseVaultCleaner
                 tasks.Add(("Event Log Scrub", () => { CleanEventLogs(); return Task.CompletedTask; }));
 
             if (config.CleanPrefetch)
+            {
                 tasks.Add(("Font Cache Rebuild", RebuildFontCacheAsync));
+                tasks.Add(("Prefetch Flush", () => { CleanPrefetchFiles(); return Task.CompletedTask; }));
+            }
+
+            if (config.CleanDevTools)
+                tasks.Add(("Dev Tools Optimization", () => { CleanDevToolsCaches(); return Task.CompletedTask; }));
+
+            if (config.CleanGaming)
+                tasks.Add(("Gaming & Comms Purge", () => { CleanGamingCaches(); return Task.CompletedTask; }));
+
+            if (config.CleanSystemDumps)
+                tasks.Add(("System Dumps Eradication", () => { CleanSystemDumps(); return Task.CompletedTask; }));
+
+            if (config.CleanDNS)
+                tasks.Add(("DNS & Net Cache Flush", FlushDNSCacheAsync));
+
+            if (config.CleanExtreme)
+                tasks.Add(("Extreme System Wipe", CleanExtremeTasksAsync));
 
             if (config.DeepScanMode)
             {
@@ -229,7 +256,28 @@ namespace SoftcurseVaultCleaner
             try
             {
                 await StopServiceAsync("wuauserv");
-                CleanDirectory(@"C:\Windows\SoftwareDistribution\Download", "Windows Update Cache");
+                await StopServiceAsync("bits");
+                await StopServiceAsync("dosvc"); // Delivery Optimization
+                
+                CleanDirectory(@"C:\Windows\SoftwareDistribution\Download", "Windows Update Download Cache");
+                CleanDirectory(@"C:\Windows\SoftwareDistribution\DataStore", "Windows Update DataStore");
+                CleanDirectory(@"C:\Windows\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache", "Delivery Optimization Cache");
+                
+                // Try to remove upgrade folders if they exist
+                if (Directory.Exists(@"C:\$WINDOWS.~BT"))
+                {
+                    CleanDirectory(@"C:\$WINDOWS.~BT", "Windows Upgrade Artifacts (~BT)");
+                    try { Directory.Delete(@"C:\$WINDOWS.~BT", true); } catch { }
+                }
+                if (Directory.Exists(@"C:\Windows.old"))
+                {
+                    LogStatus("Found Windows.old directory. Warning: system rollback will no longer be possible once deleted.");
+                    // Requires extensive permissions, sometimes taking ownership is needed, but we try standard deletion since we are now Admin
+                    CleanDirectory(@"C:\Windows.old", "Windows Old Backup");
+                }
+
+                await StartServiceAsync("dosvc");
+                await StartServiceAsync("bits");
                 await StartServiceAsync("wuauserv");
             }
             catch (Exception ex) { LogStatus($"Windows Update cache failed: {ex.Message}"); }
@@ -416,6 +464,93 @@ namespace SoftcurseVaultCleaner
             }
         }
 
+        private void CleanPrefetchFiles()
+        {
+            LogStatus("Cleaning Prefetch files...");
+            try
+            {
+                CleanDirectory(@"C:\Windows\Prefetch", "Windows Prefetch");
+            }
+            catch (Exception ex) { LogStatus($"Prefetch cleanup failed: {ex.Message}"); }
+        }
+
+        private void CleanDevToolsCaches()
+        {
+            var paths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm-cache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Yarn", "Cache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gradle", "caches"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".m2", "repository")
+            };
+
+            foreach (string path in paths)
+            {
+                CleanDirectory(path, $"DevTools cache: {Path.GetFileName(path)}");
+            }
+        }
+
+        private void CleanGamingCaches()
+        {
+            var paths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "discord", "Cache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "discord", "Code Cache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EpicGamesLauncher", "Saved", "webcache"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Spotify", "Data"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Teams", "Cache"),
+                @"C:\Program Files (x86)\Steam\steamapps\downloading"
+            };
+
+            foreach (string path in paths)
+            {
+                CleanDirectory(path, $"Gaming/App cache: {Path.GetFileName(path)}");
+            }
+        }
+
+        private void CleanSystemDumps()
+        {
+            var paths = new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrashDumps"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "WER"),
+                @"C:\Windows\Minidump"
+            };
+
+            foreach (string path in paths)
+            {
+                CleanDirectory(path, $"System Dump: {Path.GetFileName(path)}");
+            }
+            
+            string memDump = @"C:\Windows\MEMORY.DMP";
+            if (File.Exists(memDump))
+            {
+                try
+                {
+                    long sz = new FileInfo(memDump).Length;
+                    File.Delete(memDump);
+                    Interlocked.Add(ref _totalSpaceFreed, sz);
+                    LogStatus($"CLEANED: System Dump: MEMORY.DMP ({sz / (1024.0 * 1024.0):N1} MB)");
+                }
+                catch (Exception ex)
+                {
+                    LogStatus($"FAILED: System Dump: MEMORY.DMP - {ex.Message}");
+                }
+            }
+        }
+
+        private async Task FlushDNSCacheAsync()
+        {
+            try
+            {
+                await RunCommandAsync("ipconfig.exe", "/flushdns");
+                await RunCommandAsync("netsh.exe", "interface ip delete arpcache");
+                LogStatus("DNS and ARP caches flushed successfully");
+            }
+            catch (Exception ex) { LogStatus($"DNS flush failed: {ex.Message}"); }
+        }
+
         private void CleanCustomPaths(List<string> paths)
         {
             foreach (string path in paths)
@@ -501,16 +636,79 @@ namespace SoftcurseVaultCleaner
 
         private long CalculateDirectorySize(string path)
         {
+            return CalculateDirectorySizeSafe(new DirectoryInfo(path));
+        }
+
+        private long CalculateDirectorySizeSafe(DirectoryInfo dir)
+        {
             long size = 0;
             try
             {
-                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                // Process current directory files
+                FileInfo[] files = dir.GetFiles();
+                foreach (FileInfo fi in files)
                 {
-                    try { size += new FileInfo(file).Length; } catch { }
+                    try { size += fi.Length; } catch { }
+                }
+
+                // Recurse into subdirectories
+                DirectoryInfo[] dirs = dir.GetDirectories();
+                foreach (DirectoryInfo subDir in dirs)
+                {
+                    // Ignore reparse points (symlinks/junctions) to avoid infinite loops
+                    if ((subDir.Attributes & FileAttributes.ReparsePoint) != FileAttributes.ReparsePoint)
+                    {
+                        size += CalculateDirectorySizeSafe(subDir);
+                    }
                 }
             }
-            catch { }
+            catch
+            {
+                // If unauthorized access to this specific dir, ignore and continue tree
+            }
             return size;
+        }
+
+        private async Task CleanExtremeTasksAsync()
+        {
+            LogStatus("EXTREME MODE INITIALIZED...");
+
+            // 1. Docker Prune
+            try
+            {
+                await RunCommandAsync("docker.exe", "system prune -a -f --volumes");
+                LogStatus("Docker Prune Complete");
+            }
+            catch { }
+
+            // 2. Windows Defender History
+            string defenderHistory = @"C:\ProgramData\Microsoft\Windows Defender\Scans\History\Service\DetectionHistory";
+            if (Directory.Exists(defenderHistory))
+            {
+                CleanDirectory(defenderHistory, "Defender Scan History");
+            }
+
+            // 3. Explorer Privacy
+            string recentFiles = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Recent");
+            if (Directory.Exists(recentFiles))
+            {
+                CleanDirectory(recentFiles, "Explorer Recent Files");
+            }
+
+            // 4. IconCache
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string iconCacheFile = Path.Combine(localAppData, "IconCache.db");
+            if (File.Exists(iconCacheFile))
+            {
+                try
+                {
+                    long sz = new FileInfo(iconCacheFile).Length;
+                    File.Delete(iconCacheFile);
+                    Interlocked.Add(ref _totalSpaceFreed, sz);
+                    LogStatus("IconCache.db wiped");
+                }
+                catch { }
+            }
         }
 
         private void ConfigurePagefile(string driveLetter)

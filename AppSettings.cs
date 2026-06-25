@@ -30,6 +30,15 @@ namespace SoftcurseVaultCleaner
         private bool _defaultCleanPrefetch = true;
         private bool _defaultUseRecycleBin = false;
 
+        private bool _defaultCleanDevTools = false;
+        private bool _defaultCleanGaming = false;
+        private bool _defaultCleanSystemDumps = true;
+        private bool _defaultCleanDNS = false;
+        private bool _defaultCleanExtreme = false;
+        private bool _defaultEnableAutoClean = false;
+        private bool _defaultDeepScanMode = false;
+
+
         // ── Appearance ──────────────────────────────────────────────────
         private int _logFontSize = 11;
 
@@ -102,6 +111,48 @@ namespace SoftcurseVaultCleaner
         {
             get => _defaultUseRecycleBin;
             set { if (_defaultUseRecycleBin != value) { _defaultUseRecycleBin = value; OnChanged(); } }
+        }
+
+        public bool DefaultCleanDevTools
+        {
+            get => _defaultCleanDevTools;
+            set { if (_defaultCleanDevTools != value) { _defaultCleanDevTools = value; OnChanged(); } }
+        }
+
+        public bool DefaultCleanGaming
+        {
+            get => _defaultCleanGaming;
+            set { if (_defaultCleanGaming != value) { _defaultCleanGaming = value; OnChanged(); } }
+        }
+
+        public bool DefaultCleanSystemDumps
+        {
+            get => _defaultCleanSystemDumps;
+            set { if (_defaultCleanSystemDumps != value) { _defaultCleanSystemDumps = value; OnChanged(); } }
+        }
+
+        public bool DefaultCleanDNS
+        {
+            get => _defaultCleanDNS;
+            set { if (_defaultCleanDNS != value) { _defaultCleanDNS = value; OnChanged(); } }
+        }
+
+        public bool DefaultCleanExtreme
+        {
+            get => _defaultCleanExtreme;
+            set { if (_defaultCleanExtreme != value) { _defaultCleanExtreme = value; OnChanged(); } }
+        }
+
+        public bool DefaultEnableAutoClean
+        {
+            get => _defaultEnableAutoClean;
+            set { if (_defaultEnableAutoClean != value) { _defaultEnableAutoClean = value; OnChanged(); } }
+        }
+
+        public bool DefaultDeepScanMode
+        {
+            get => _defaultDeepScanMode;
+            set { if (_defaultDeepScanMode != value) { _defaultDeepScanMode = value; OnChanged(); } }
         }
 
         public int LogFontSize
@@ -191,6 +242,15 @@ namespace SoftcurseVaultCleaner
             DefaultUseRecycleBin = fresh.DefaultUseRecycleBin;
             LogFontSize = fresh.LogFontSize;
             MaxLogLines = fresh.MaxLogLines;
+            
+            DefaultCleanDevTools = fresh.DefaultCleanDevTools;
+            DefaultCleanGaming = fresh.DefaultCleanGaming;
+            DefaultCleanSystemDumps = fresh.DefaultCleanSystemDumps;
+            DefaultCleanDNS = fresh.DefaultCleanDNS;
+            DefaultCleanExtreme = fresh.DefaultCleanExtreme;
+            DefaultEnableAutoClean = fresh.DefaultEnableAutoClean;
+            DefaultDeepScanMode = fresh.DefaultDeepScanMode;
+            
             Save();
         }
 

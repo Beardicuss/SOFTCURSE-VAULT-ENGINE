@@ -536,6 +536,24 @@
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanPrefetch}"/>
 
+                                        <TextBlock Text="Extended cleanup:" Foreground="#CCCCCC" 
+                                                   FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
+                                        <CheckBox x:Name="chkDevTools" Content="Developer tools cache (npm, NuGet, etc.)" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanDevTools}"/>
+                                        <CheckBox x:Name="chkGaming" Content="Gaming &amp; Comms (Discord, Steam, etc.)" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanGaming}"/>
+                                        <CheckBox x:Name="chkSystemDumps" Content="System Diagnostics (CrashDumps, WER)" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanSystemDumps}"/>
+                                        <CheckBox x:Name="chkDNS" Content="Flush DNS &amp; Network ARP caches" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
+                                                  IsChecked="{Binding CleanDNS}"/>
+                                        <CheckBox x:Name="chkExtreme" Content="Extreme Wipe (Docker, OS Privacy)" 
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" Foreground="#FF5555"
+                                                  IsChecked="{Binding CleanExtreme}"/>
+
                                         <TextBlock Text="Custom folders to clean:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
                                         <ListBox x:Name="lstCustomFolders" Height="60" 
@@ -1107,7 +1125,99 @@
     </Grid>
 </TabItem>
 
-<!-- ══ TAB 3: SUBSCRIPTION ══ -->
+<!-- ══ TAB 3: AUTO-TUNE (Ultimate Optimization) ══ -->
+<TabItem Header="  ⚡ AUTO-TUNE  " Style="{StaticResource TechTabItem}">
+    <Grid DataContext="{Binding AutoTune}" Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header and Auto-Clean Toggle -->
+        <Border Grid.Row="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="1" Padding="15" Margin="0,0,0,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ULTIMATE SYSTEM OPTIMIZATION" Foreground="#00FFFF" FontFamily="Consolas" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding Status}" Foreground="#4ade80" FontFamily="Consolas" FontSize="11" Margin="0,5,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="⚡ Smart Auto-Clean Scheduler" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <CheckBox Style="{StaticResource TechCheckBox}" IsChecked="{Binding EnableAutoClean}" 
+                              ToolTip="Automatically run cleanup in the background every 4 hours when minimized"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Grid Config -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="15"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- STARTUP MANAGER -->
+            <Border Grid.Column="0" Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="15">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="STARTUP MANAGER" Foreground="#00FFFF" FontFamily="Consolas" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding StartupItems}" AutoGenerateColumns="False" 
+                              Background="Transparent" Foreground="#CCC" RowBackground="Transparent" 
+                              BorderThickness="0" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#222">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
+                            <DataGridTextColumn Header="Program Name" Binding="{Binding Name}" Width="150" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Location" Binding="{Binding Location}" Width="100" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,15,0,0">
+                        <Button Content="🔍 SCAN STARTUP" Style="{StaticResource TechButton}" Command="{Binding ScanStartupCommand}" Margin="0,0,10,0" Padding="12,5"/>
+                        <Button Content="🗑 DELETE CHECKED" Style="{StaticResource TechButton}" Command="{Binding DeleteSelectedStartupCommand}" 
+                                Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d" Padding="12,5"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- REGISTRY SWEEPER -->
+            <Border Grid.Column="2" Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="15">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" Text="INVALID REGISTRY SWEEPER" Foreground="#00FFFF" FontFamily="Consolas" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding RegistryIssues}" AutoGenerateColumns="False" 
+                              Background="Transparent" Foreground="#CCC" RowBackground="Transparent" 
+                              BorderThickness="0" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              HorizontalGridLinesBrush="#222">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
+                            <DataGridTextColumn Header="Missing Path" Binding="{Binding ProblemData}" Width="150" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Key Type" Binding="{Binding Type}" Width="100" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,15,0,0">
+                        <Button Content="🔍 SCAN REGISTRY" Style="{StaticResource TechButton}" Command="{Binding ScanRegistryCommand}" Margin="0,0,10,0" Padding="12,5"/>
+                        <Button Content="🔧 FIX CHECKED" Style="{StaticResource TechButton}" Command="{Binding FixSelectedRegistryCommand}" 
+                                Background="#001a1a" BorderBrush="#0088FF" Foreground="#0088FF" Padding="12,5"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</TabItem>
+
+<!-- ══ TAB 4: SUBSCRIPTION ══ -->
 <TabItem Header="  👑 SUBSCRIPTION  " Style="{StaticResource TechTabItem}">
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
         <StackPanel Margin="30,20" MaxWidth="700">
