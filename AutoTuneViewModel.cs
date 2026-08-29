@@ -114,14 +114,8 @@ namespace SoftcurseVaultCleaner
                 // 1. HKCU Run
                 ScanRegistryRunKey(Registry.CurrentUser, @"Software\Microsoft\Windows\CurrentVersion\Run", "HKCU");
                 
-                // 2. HKLM Run
-                ScanRegistryRunKey(Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Run", "HKLM");
-
-                // 3. User Startup Folder
+                // 2. User Startup Folder
                 ScanStartupFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "User Startup Folder");
-                
-                // 4. Common Startup Folder
-                ScanStartupFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "All Users Startup");
             });
 
             Status = $"Scanned {StartupItems.Count} startup programs.";
@@ -203,8 +197,9 @@ namespace SoftcurseVaultCleaner
                     else if (!string.IsNullOrEmpty(item.RegistryKey) && !string.IsNullOrEmpty(item.RegistryValueName))
                     {
                         string[] parts = item.RegistryKey.Split('\\', 2);
-                        RegistryKey root = parts[0] == "HKEY_LOCAL_MACHINE" ? Registry.LocalMachine : Registry.CurrentUser;
-                        using (RegistryKey key = root.OpenSubKey(parts[1], true))
+                        if (parts[0] != Registry.CurrentUser.Name)
+                            continue;
+                        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(parts[1], true))
                         {
                             if (key != null)
                             {
@@ -231,10 +226,7 @@ namespace SoftcurseVaultCleaner
 
             await Task.Run(() =>
             {
-                // MUICache - Very safe to clean
-                ScanMissingPathsInKey(Registry.ClassesRoot, @"Local Settings\Software\Microsoft\Windows\Shell\MuiCache", "MUICache");
-
-                // HKCU Run Key (orphaned runners)
+                // Only the current user's Run key is writable in standard-user mode.
                 ScanMissingPathsInKey(Registry.CurrentUser, @"Software\Microsoft\Windows\CurrentVersion\Run", "HKCU Run Key");
             });
 
@@ -312,11 +304,10 @@ namespace SoftcurseVaultCleaner
                 try
                 {
                     string[] parts = item.RegistryKey.Split('\\', 2);
-                    RegistryKey root = Registry.CurrentUser;
-                    if (parts[0] == "HKEY_LOCAL_MACHINE") root = Registry.LocalMachine;
-                    if (parts[0] == "HKEY_CLASSES_ROOT") root = Registry.ClassesRoot;
+                    if (parts[0] != Registry.CurrentUser.Name)
+                        continue;
 
-                    using (RegistryKey key = root.OpenSubKey(parts[1], true))
+                    using (RegistryKey key = Registry.CurrentUser.OpenSubKey(parts[1], true))
                     {
                         if (key != null)
                         {

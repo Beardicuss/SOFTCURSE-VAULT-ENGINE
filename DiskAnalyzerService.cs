@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -61,10 +60,11 @@ namespace SoftcurseVaultCleaner
         public long   Size     { get; set; }
         public string SizeStr  => SizeFormatter.Format(Size);
         public bool   Safe     { get; set; }
-        public string SafeStr  => Safe ? "Safe" : "Review";
+        public string SafeStr  => Safe ? "Recommended" : "Review";
         public string Category { get; set; }
         public string Note     { get; set; }
         public bool   IsFile   { get; set; }
+        public CleanupPrivilege RequiredPrivilege { get; set; } = CleanupPrivilege.StandardUser;
     }
 
     public class LargeFileResult : SelectableItem
@@ -132,6 +132,8 @@ namespace SoftcurseVaultCleaner
 
     public class DiskAnalyzerService
     {
+        private readonly SafeCleanupEngine _cleanupEngine = new SafeCleanupEngine();
+
         public void Cancel() { }  // CancellationToken handled by caller
 
         // ── FULL SCAN ────────────────────────────────────────────────────────
@@ -198,43 +200,16 @@ namespace SoftcurseVaultCleaner
             IEnumerable<JunkTarget> items, Action<string> statusCb,
             CancellationToken token = default)
         {
-            return await Task.Run(() =>
-            {
-                var res = new DeletionResult();
-                foreach (var item in items)
-                {
-                    if (token.IsCancellationRequested) break;
-                    statusCb?.Invoke($"Deleting: {item.Label}…");
-                    try
-                    {
-                        if (item.IsFile)
-                        {
-                            if (File.Exists(item.FullPath))
-                            {
-                                var fi = new FileInfo(item.FullPath);
-                                if (!fi.Exists) { res.FailedCount++; res.Errors.Add($"{item.Label}: File no longer exists"); continue; }
-                                long sz = fi.Length;
-                                File.Delete(item.FullPath);
-                                res.BytesFreed += sz; res.DeletedCount++;
-                            }
-                        }
-                        else
-                        {
-                            if (Directory.Exists(item.FullPath))
-                            {
-                                res.BytesFreed += WipeDirectory(item.FullPath, token);
-                                res.DeletedCount++;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        res.FailedCount++;
-                        res.Errors.Add($"{item.Label}: {ex.Message}");
-                    }
-                }
-                return res;
-            }, token);
+            var selected = items.ToList();
+            foreach (var item in selected)
+                statusCb?.Invoke($"Preparing recoverable deletion: {item.Label}…");
+
+            var targets = selected.Select(item => new CleanupTarget(
+                $"analyzer-junk:{item.Label}", item.Label, item.FullPath, item.Note,
+                item.IsFile ? CleanupTargetType.File : CleanupTargetType.DirectoryContents,
+                CleanupTargetOrigin.BuiltIn, "Analyzer",
+                item.Safe ? CleanupRisk.Low : CleanupRisk.High, item.RequiredPrivilege));
+            return ConvertResult(await _cleanupEngine.ExecuteAsync(targets, token));
         }
 
         // ── DELETE LARGE FILES ───────────────────────────────────────────────
@@ -243,26 +218,14 @@ namespace SoftcurseVaultCleaner
             IEnumerable<LargeFileResult> items, Action<string> statusCb,
             CancellationToken token = default)
         {
-            return await Task.Run(() =>
-            {
-                var res = new DeletionResult();
-                foreach (var item in items)
-                {
-                    if (token.IsCancellationRequested) break;
-                    statusCb?.Invoke($"Deleting: {System.IO.Path.GetFileName(item.Path)}…");
-                    try
-                    {
-                        if (File.Exists(item.Path))
-                        {
-                            long sz = new FileInfo(item.Path).Length;
-                            File.Delete(item.Path);
-                            res.BytesFreed += sz; res.DeletedCount++;
-                        }
-                    }
-                    catch (Exception ex) { res.FailedCount++; res.Errors.Add($"{item.Path}: {ex.Message}"); }
-                }
-                return res;
-            }, token);
+            var selected = items.ToList();
+            foreach (var item in selected)
+                statusCb?.Invoke($"Preparing recoverable deletion: {System.IO.Path.GetFileName(item.Path)}…");
+
+            var targets = selected.Select(item => new CleanupTarget(
+                $"analyzer-large:{item.Path}", System.IO.Path.GetFileName(item.Path), item.Path,
+                "User-selected large file", CleanupTargetType.File, CleanupTargetOrigin.UserSelected));
+            return ConvertResult(await _cleanupEngine.ExecuteAsync(targets, token));
         }
 
         // ── DELETE DUPLICATES ────────────────────────────────────────────────
@@ -271,25 +234,41 @@ namespace SoftcurseVaultCleaner
             IEnumerable<DupeRow> rows, Action<string> statusCb,
             CancellationToken token = default)
         {
-            return await Task.Run(() =>
+            var selected = rows.Where(row => row.IsDupe && row.IsChecked).ToList();
+            foreach (var row in selected)
+                statusCb?.Invoke($"Preparing recoverable deletion: {System.IO.Path.GetFileName(row.FilePath)}…");
+
+            var targets = selected.Select(row => new CleanupTarget(
+                $"analyzer-duplicate:{row.FilePath}", System.IO.Path.GetFileName(row.FilePath),
+                row.FilePath, "User-confirmed duplicate", CleanupTargetType.File,
+                CleanupTargetOrigin.UserSelected));
+            return ConvertResult(await _cleanupEngine.ExecuteAsync(targets, token));
+        }
+
+        public IReadOnlyList<CleanupPreviewItem> PreviewJunk(IEnumerable<JunkTarget> items) =>
+            _cleanupEngine.Preview(items.Select(item => new CleanupTarget(
+                $"analyzer-junk:{item.Label}", item.Label, item.FullPath, item.Note,
+                item.IsFile ? CleanupTargetType.File : CleanupTargetType.DirectoryContents,
+                CleanupTargetOrigin.BuiltIn, "Analyzer",
+                item.Safe ? CleanupRisk.Low : CleanupRisk.High, item.RequiredPrivilege)));
+
+        public IReadOnlyList<CleanupPreviewItem> PreviewFiles(IEnumerable<string> paths, string reason) =>
+            _cleanupEngine.Preview(paths.Select(path => new CleanupTarget(
+                $"analyzer-file:{path}", System.IO.Path.GetFileName(path), path, reason,
+                CleanupTargetType.File, CleanupTargetOrigin.UserSelected)));
+
+        private static DeletionResult ConvertResult(CleanupExecutionResult result)
+        {
+            var converted = new DeletionResult
             {
-                var res = new DeletionResult();
-                foreach (var row in rows.Where(r => r.IsDupe && r.IsChecked))
-                {
-                    if (token.IsCancellationRequested) break;
-                    statusCb?.Invoke($"Deleting duplicate: {System.IO.Path.GetFileName(row.FilePath)}…");
-                    try
-                    {
-                        if (File.Exists(row.FilePath))
-                        {
-                            long sz = new FileInfo(row.FilePath).Length;
-                            File.Delete(row.FilePath); res.BytesFreed += sz; res.DeletedCount++;
-                        }
-                    }
-                    catch (Exception ex) { res.FailedCount++; res.Errors.Add(ex.Message); }
-                }
-                return res;
-            }, token);
+                DeletedCount = result.SucceededCount,
+                FailedCount = result.FailedCount + result.SkippedCount,
+                BytesFreed = result.BytesFreed
+            };
+            converted.Errors.AddRange(result.Items
+                .Where(item => !item.Succeeded)
+                .Select(item => $"{item.Target.DisplayName}: {item.Message}"));
+            return converted;
         }
 
         // ── DUPLICATE FINDER ─────────────────────────────────────────────────
@@ -304,53 +283,18 @@ namespace SoftcurseVaultCleaner
             Action<string> statusCb, Action<int> progressCb, CancellationToken token)
         {
             const long MIN_SIZE = 10 * 1024;
-            statusCb?.Invoke("Collecting file list…");
-
-            var bySize = new Dictionary<long, List<string>>();
-            foreach (var file in EnumerateFilesIterative(root))
-            {
-                if (token.IsCancellationRequested) return new List<DuplicateGroup>();
-                try
+            statusCb?.Invoke("Collecting and SHA-256 verifying candidate files…");
+            int groupId = 1;
+            return DuplicateFileVerifier.Find(root, MIN_SIZE,
+                    percent => progressCb?.Invoke(30 + (int)(percent * 0.7)), token)
+                .Select(group => new DuplicateGroup
                 {
-                    long sz = new FileInfo(file).Length;
-                    if (sz < MIN_SIZE) continue;
-                    if (!bySize.ContainsKey(sz)) bySize[sz] = new List<string>();
-                    bySize[sz].Add(file);
-                }
-                catch { }
-            }
-
-            var groups = new List<DuplicateGroup>();
-            var candidates = bySize.Where(kv => kv.Value.Count > 1).ToList();
-            int done = 0, gid = 1;
-            foreach (var kv in candidates)
-            {
-                if (token.IsCancellationRequested) break;
-                done++;
-                progressCb?.Invoke(30 + (int)(done / (double)candidates.Count * 70));
-                statusCb?.Invoke($"Hashing {done}/{candidates.Count} size groups…");
-                var byHash = new Dictionary<string, List<string>>();
-                foreach (var f in kv.Value)
-                {
-                    if (token.IsCancellationRequested) break;
-                    try
-                    {
-                        string h = ComputeMD5(f);
-                        if (!byHash.ContainsKey(h)) byHash[h] = new List<string>();
-                        byHash[h].Add(f);
-                    }
-                    catch { }
-                }
-                foreach (var hkv in byHash)
-                    if (hkv.Value.Count > 1)
-                        groups.Add(new DuplicateGroup
-                        {
-                            GroupId = gid++, Hash = hkv.Key.Substring(0, 8),
-                            FileSize = kv.Key, Files = hkv.Value
-                        });
-            }
-            groups.Sort((a, b) => b.WastedSize.CompareTo(a.WastedSize));
-            return groups;
+                    GroupId = groupId++,
+                    Hash = group.Sha256.Substring(0, 8),
+                    FileSize = group.FileSize,
+                    Files = group.Files.ToList()
+                })
+                .ToList();
         }
 
         // ── SCAN HELPERS ─────────────────────────────────────────────────────
@@ -466,57 +410,12 @@ namespace SoftcurseVaultCleaner
             return 0;
         }
 
-        private long WipeDirectory(string path, CancellationToken token)
-        {
-            long freed = 0;
-            try
-            {
-                foreach (var file in Directory.EnumerateFiles(path))
-                { if (token.IsCancellationRequested) return freed;
-                  try { freed += new FileInfo(file).Length; File.Delete(file); } catch { } }
-                foreach (var dir in Directory.EnumerateDirectories(path))
-                { if (token.IsCancellationRequested) return freed;
-                  try { freed += GetDirSize(dir); Directory.Delete(dir, true); } catch { } }
-            }
-            catch { }
-            return freed;
-        }
-
         public static long GetDirSize(string path)
         {
             long total = 0;
             try { foreach (var f in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
                     try { total += new FileInfo(f).Length; } catch { } } catch { }
             return total;
-        }
-
-        private IEnumerable<string> EnumerateFilesIterative(string root)
-        {
-            var q = new Queue<string>(); q.Enqueue(root);
-            while (q.Count > 0)
-            {
-                string dir = q.Dequeue();
-                string[] files; try { files = Directory.GetFiles(dir); } catch { files = Array.Empty<string>(); }
-                foreach (var f in files) yield return f;
-                string[] dirs; try { dirs = Directory.GetDirectories(dir); } catch { dirs = Array.Empty<string>(); }
-                foreach (var d in dirs) q.Enqueue(d);
-            }
-        }
-
-        private string ComputeMD5(string path)
-        {
-            using (var md5 = MD5.Create())
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192))
-            {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    md5.TransformBlock(buffer, 0, bytesRead, null, 0);
-                }
-                md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                return BitConverter.ToString(md5.Hash).Replace("-","").ToLower();
-            }
         }
 
         // ── SUGGESTIONS TEXT ─────────────────────────────────────────────────
@@ -538,11 +437,9 @@ namespace SoftcurseVaultCleaner
             foreach (var j in result.JunkTargets.Where(j => j.Safe).Take(10))
                 sb.AppendLine($"  ✅  {j.Label,-35}  {j.SizeStr,10}   {j.Note}");
             sb.AppendLine();
-            sb.AppendLine("══ RUN THESE COMMANDS (as Administrator) ══════════════════════");
-            sb.AppendLine("  cleanmgr /sageset:1  then  cleanmgr /sagerun:1");
-            sb.AppendLine("  DISM /Online /Cleanup-Image /StartComponentCleanup");
-            sb.AppendLine("  powercfg -h off          ← frees ~your RAM size");
-            sb.AppendLine("  del /s /q %TEMP%\\*");
+            sb.AppendLine("══ SUPPORTED WINDOWS MAINTENANCE ══════════════════════════════");
+            sb.AppendLine("  • Settings → System → Storage → Temporary files");
+            sb.AppendLine("  • Enable Windows component cleanup in Vault Cleaner (UAC required)");
             sb.AppendLine();
             sb.AppendLine("══ LARGEST FILES (check boxes in Large Files tab → DELETE SELECTED) ══");
             foreach (var f in result.LargeFiles.Take(15))
@@ -568,22 +465,24 @@ namespace SoftcurseVaultCleaner
             string local  = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string roaming= Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
-            JunkTarget T(string label, string path, string note, bool safe, string cat)
-                => new JunkTarget { Label=label, FullPath=path, Note=note, Safe=safe, Category=cat };
+            JunkTarget T(string label, string path, string note, bool safe, string cat,
+                CleanupPrivilege privilege = CleanupPrivilege.StandardUser)
+                => new JunkTarget { Label=label, FullPath=path, Note=note, Safe=safe, Category=cat,
+                    RequiredPrivilege=privilege };
 
             return new List<JunkTarget>
             {
                 // System
-                T("Windows Temp",         @"C:\Windows\Temp",                                        "OS temp — Windows rebuilds automatically",            true,  "System"),
+                T("Windows Temp",         @"C:\Windows\Temp",                                        "Use Windows Settings → Storage → Temporary files",      false, "System", CleanupPrivilege.Administrator),
                 T("User Temp (%TEMP%)",   Path.Combine(local,"Temp"),                               "Per-user application leftovers",                     true,  "System"),
-                T("Windows Update Cache", @"C:\Windows\SoftwareDistribution\Download",              "Old update packages — safe after updates applied",   true,  "System"),
-                T("Prefetch Files",       @"C:\Windows\Prefetch",                                   "App launch cache — Windows rebuilds it",             true,  "System"),
-                T("Delivery Opt Cache",   @"C:\Windows\SoftwareDistribution\DeliveryOptimization",  "P2P update chunks",                                  true,  "System"),
+                T("Windows Update Cache", @"C:\Windows\SoftwareDistribution\Download",              "Use Windows Settings → Storage → Temporary files",   false, "System", CleanupPrivilege.Administrator),
+                T("Prefetch Files",       @"C:\Windows\Prefetch",                                   "Managed by Windows; direct cleanup is unavailable",  false, "System", CleanupPrivilege.Administrator),
+                T("Delivery Opt Cache",   @"C:\Windows\SoftwareDistribution\DeliveryOptimization",  "Use Windows Delivery Optimization settings",         false, "System", CleanupPrivilege.Administrator),
                 T("Windows Error Reports",Path.Combine(local,"Microsoft","Windows","WER"),          "Crash dump reports",                                 true,  "System"),
-                T("CBS Logs",             @"C:\Windows\Logs\CBS",                                   "Component servicing logs",                           true,  "System"),
-                T("Minidump Files",       @"C:\Windows\Minidump",                                   "Crash memory dumps",                                 true,  "System"),
+                T("CBS Logs",             @"C:\Windows\Logs\CBS",                                   "Protected servicing diagnostics; direct cleanup unavailable", false, "System", CleanupPrivilege.Administrator),
+                T("Minidump Files",       @"C:\Windows\Minidump",                                   "Protected crash diagnostics; direct cleanup unavailable", false, "System", CleanupPrivilege.Administrator),
                 T("Thumbnail Cache",      Path.Combine(local,"Microsoft","Windows","Explorer"),     "Explorer thumbcache files — rebuilt automatically",  true,  "System"),
-                T("Recycle Bin",          @"C:\$Recycle.Bin",                                       "Files deleted but not yet purged",                   true,  "System"),
+                T("Recycle Bin",          @"C:\$Recycle.Bin",                                       "Use the dedicated Empty Recycle Bin option",         false, "System", CleanupPrivilege.Administrator),
                 T("Hibernation File",     @"C:\hiberfil.sys",                                       "Run powercfg -h off to remove (~RAM size freed)",    false, "System"),
                 T("WinSxS Store",         @"C:\Windows\WinSxS",                                    "Run: DISM /Online /Cleanup-Image /StartComponentCleanup", false, "System"),
                 // Browsers
@@ -593,19 +492,19 @@ namespace SoftcurseVaultCleaner
                 T("Chrome Crashpad",      Path.Combine(local,"Google","Chrome","User Data","Crashpad"),              "Chrome crash reports",     true, "Browsers"),
                 T("Edge Cache",           Path.Combine(local,"Microsoft","Edge","User Data","Default","Cache"),      "Edge web cache",           true, "Browsers"),
                 T("Edge Code Cache",      Path.Combine(local,"Microsoft","Edge","User Data","Default","Code Cache"), "Edge JS compiled cache",   true, "Browsers"),
-                T("Firefox Profiles",     Path.Combine(roaming,"Mozilla","Firefox","Profiles"),                      "Firefox cache and storage",true, "Browsers"),
+                T("Firefox Profiles",     Path.Combine(roaming,"Mozilla","Firefox","Profiles"),                      "Contains profile data; review manually",false, "Browsers"),
                 T("Brave Cache",          Path.Combine(local,"BraveSoftware","Brave-Browser","User Data","Default","Cache"), "Brave browser cache", true, "Browsers"),
                 T("IE/Legacy Cache",      Path.Combine(local,"Microsoft","Windows","INetCache"),                     "Old IE cache",             true, "Browsers"),
                 // Developer
                 T("npm Cache",            Path.Combine(roaming,"npm-cache"),                         "Node package manager cache",    true,  "Developer"),
                 T("yarn Cache",           Path.Combine(local,"Yarn","Cache"),                        "Yarn package cache",            true,  "Developer"),
                 T("pip Cache",            Path.Combine(local,"pip","Cache"),                         "Python pip cache",              true,  "Developer"),
-                T("Gradle Cache",         Path.Combine(local,"Gradle"),                              "Android/Java build cache",      true,  "Developer"),
-                T("Maven Repository",     Path.Combine(u,".m2"),                                     "Maven local repo",              true,  "Developer"),
+                T("Gradle Data",          Path.Combine(local,"Gradle"),                              "May contain more than caches",  false, "Developer"),
+                T("Maven Repository",     Path.Combine(u,".m2"),                                     "Local repository and settings", false, "Developer"),
                 T("NuGet Cache",          Path.Combine(local,"NuGet","Cache"),                       "NuGet package cache",           true,  "Developer"),
                 T(".cargo Registry",      Path.Combine(u,".cargo","registry"),                       "Rust Cargo registry",           true,  "Developer"),
-                T("JetBrains Cache",      Path.Combine(local,"JetBrains"),                           "JetBrains IDE caches",          true,  "Developer"),
-                T("Visual Studio Cache",  Path.Combine(local,"Microsoft","VisualStudio"),            "Visual Studio IDE caches",      true,  "Developer"),
+                T("JetBrains Data",       Path.Combine(local,"JetBrains"),                           "May contain IDE configuration", false, "Developer"),
+                T("Visual Studio Data",   Path.Combine(local,"Microsoft","VisualStudio"),            "May contain IDE configuration", false, "Developer"),
                 T("Android SDK",          Path.Combine(local,"Android","Sdk"),                       "Remove unused API levels",      false, "Developer"),
                 // Apps
                 T("Discord Cache",        Path.Combine(roaming,"discord","Cache"),                   "Discord media cache",           true, "Apps"),
@@ -613,16 +512,16 @@ namespace SoftcurseVaultCleaner
                 T("Teams Cache",          Path.Combine(roaming,"Microsoft","Teams","Cache"),         "Teams media cache",             true, "Apps"),
                 T("Teams SW Cache",       Path.Combine(roaming,"Microsoft","Teams","Service Worker","CacheStorage"), "Teams service worker cache", true, "Apps"),
                 T("Slack Cache",          Path.Combine(roaming,"Slack","Cache"),                     "Slack media cache",             true, "Apps"),
-                T("Zoom Cache",           Path.Combine(roaming,"Zoom","data"),                       "Zoom data cache",               true, "Apps"),
-                T("Spotify Cache",        Path.Combine(local,"Spotify","Data"),                      "Spotify offline cache",         true, "Apps"),
-                T("Steam AppCache",       @"C:\Program Files (x86)\Steam\appcache",                 "Steam depot cache",             true, "Apps"),
+                T("Zoom Data",            Path.Combine(roaming,"Zoom","data"),                       "May contain application data",  false,"Apps"),
+                T("Spotify Data",         Path.Combine(local,"Spotify","Data"),                      "May contain offline media",     false,"Apps"),
+                T("Steam AppCache",       @"C:\Program Files (x86)\Steam\appcache",                 "Protected application directory; use Steam",         false, "Apps", CleanupPrivilege.Administrator),
                 T("Steam Games",          @"C:\Program Files (x86)\Steam\steamapps\common",         "Installed Steam games",         false,"Apps"),
                 T("Epic Launcher Cache",  Path.Combine(local,"EpicGamesLauncher","Saved","webcache"),"Epic web cache",               true, "Apps"),
                 T("Battle.net Cache",     Path.Combine(local,"Battle.net","Cache"),                  "Battle.net launcher cache",     true, "Apps"),
-                T("Adobe Cache",          Path.Combine(local,"Adobe"),                               "Adobe app caches",              true, "Apps"),
+                T("Adobe Data",           Path.Combine(local,"Adobe"),                               "May contain application data",  false,"Apps"),
                 T("NVIDIA DXCache",       Path.Combine(local,"NVIDIA","DXCache"),                    "NVIDIA shader cache",           true, "Apps"),
                 T("AMD DXCache",          Path.Combine(local,"AMD","DXCache"),                       "AMD shader cache",              true, "Apps"),
-                T("Office Cache",         Path.Combine(local,"Microsoft","Office"),                  "Office telemetry/doc caches",   true, "Apps"),
+                T("Office Data",          Path.Combine(local,"Microsoft","Office"),                  "May contain document/app data", false,"Apps"),
                 // User Data
                 T("Downloads Folder",     Path.Combine(u,"Downloads"),                              "Your downloads — review first!", false,"User Data"),
                 T("Desktop Files",        Path.Combine(u,"Desktop"),                                "Files on your desktop",         false,"User Data"),

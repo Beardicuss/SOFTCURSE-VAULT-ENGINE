@@ -18,21 +18,21 @@ namespace SoftcurseVaultCleaner
         public static AppSettings Instance => _instance ??= Load();
 
         // ── General ─────────────────────────────────────────────────────
-        private bool _checkUpdatesOnStartup = true;
+        private bool _checkUpdatesOnStartup = false;
         private string _defaultDrive = "C:\\";
         private bool _startMinimized = false;
 
         // ── Cleanup defaults ────────────────────────────────────────────
-        private bool _defaultCleanTemp = true;
-        private bool _defaultCleanCache = true;
-        private bool _defaultCleanLogs = true;
+        private bool _defaultCleanTemp = false;
+        private bool _defaultCleanCache = false;
+        private bool _defaultCleanLogs = false;
         private bool _defaultCleanRecycleBin = false;
-        private bool _defaultCleanPrefetch = true;
-        private bool _defaultUseRecycleBin = false;
+        private bool _defaultCleanPrefetch = false;
+        private bool _defaultUseRecycleBin = true;
 
         private bool _defaultCleanDevTools = false;
         private bool _defaultCleanGaming = false;
-        private bool _defaultCleanSystemDumps = true;
+        private bool _defaultCleanSystemDumps = false;
         private bool _defaultCleanDNS = false;
         private bool _defaultCleanExtreme = false;
         private bool _defaultEnableAutoClean = false;
@@ -45,15 +45,9 @@ namespace SoftcurseVaultCleaner
         // ── Storage ─────────────────────────────────────────────────────
         private int _maxLogLines = 5000;
 
-        // ── License ─────────────────────────────────────────────────────
-        private string _licenseKey = "";
-        private string _licenseEmail = "";
-
-        // ── Update ──────────────────────────────────────────────────────
-        private string _updateUrl = "https://raw.githubusercontent.com/softcurse/vault-cleaner/main/version.json";
-
         // ── Onboarding ──────────────────────────────────────────────────
         private bool _hasCompletedFirstRun = false;
+        private bool _phase1SafetyDefaultsMigrated = false;
 
         // ═══════════════════════════════════════════════════════════════
         //  PROPERTIES (with change notification + auto-save)
@@ -167,28 +161,16 @@ namespace SoftcurseVaultCleaner
             set { if (_maxLogLines != value) { _maxLogLines = value; OnChanged(); } }
         }
 
-        public string LicenseKey
-        {
-            get => _licenseKey;
-            set { if (_licenseKey != value) { _licenseKey = value; OnChanged(); } }
-        }
-
-        public string LicenseEmail
-        {
-            get => _licenseEmail;
-            set { if (_licenseEmail != value) { _licenseEmail = value; OnChanged(); } }
-        }
-
-        public string UpdateUrl
-        {
-            get => _updateUrl;
-            set { if (_updateUrl != value) { _updateUrl = value; OnChanged(); } }
-        }
-
         public bool HasCompletedFirstRun
         {
             get => _hasCompletedFirstRun;
             set { if (_hasCompletedFirstRun != value) { _hasCompletedFirstRun = value; OnChanged(); } }
+        }
+
+        public bool Phase1SafetyDefaultsMigrated
+        {
+            get => _phase1SafetyDefaultsMigrated;
+            set { if (_phase1SafetyDefaultsMigrated != value) { _phase1SafetyDefaultsMigrated = value; OnChanged(); } }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -197,6 +179,7 @@ namespace SoftcurseVaultCleaner
 
         public static AppSettings Load()
         {
+            RemoveLegacyPlaintextLicense();
             try
             {
                 if (File.Exists(SettingsFile))
@@ -214,6 +197,20 @@ namespace SoftcurseVaultCleaner
 
             _instance = new AppSettings();
             return _instance;
+        }
+
+        private static void RemoveLegacyPlaintextLicense()
+        {
+            try
+            {
+                string legacyLicense = Path.Combine(SettingsDir, "license.dat");
+                if (File.Exists(legacyLicense))
+                    File.Delete(legacyLicense);
+            }
+            catch
+            {
+                // The obsolete license is never trusted, even if cleanup is blocked by the OS.
+            }
         }
 
         public void Save()
@@ -250,7 +247,29 @@ namespace SoftcurseVaultCleaner
             DefaultCleanExtreme = fresh.DefaultCleanExtreme;
             DefaultEnableAutoClean = fresh.DefaultEnableAutoClean;
             DefaultDeepScanMode = fresh.DefaultDeepScanMode;
+            Phase1SafetyDefaultsMigrated = true;
             
+            Save();
+        }
+
+        public void ApplyPhase1SafetyMigration()
+        {
+            if (_phase1SafetyDefaultsMigrated) return;
+
+            _defaultCleanTemp = false;
+            _defaultCleanCache = false;
+            _defaultCleanLogs = false;
+            _defaultCleanRecycleBin = false;
+            _defaultCleanPrefetch = false;
+            _defaultUseRecycleBin = true;
+            _defaultCleanDevTools = false;
+            _defaultCleanGaming = false;
+            _defaultCleanSystemDumps = false;
+            _defaultCleanDNS = false;
+            _defaultCleanExtreme = false;
+            _defaultEnableAutoClean = false;
+            _defaultDeepScanMode = false;
+            _phase1SafetyDefaultsMigrated = true;
             Save();
         }
 

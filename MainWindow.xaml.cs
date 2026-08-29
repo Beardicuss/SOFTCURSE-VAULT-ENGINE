@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,7 +31,9 @@ namespace SoftcurseVaultCleaner
             Bottom = 6, BottomLeft = 7, BottomRight = 8,
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", EntryPoint = "SendMessageW", CharSet = CharSet.Unicode,
+            ExactSpelling = true)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
         public MainWindow()
@@ -88,7 +89,7 @@ namespace SoftcurseVaultCleaner
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"WebView2 Init Failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"WebView2 Init Failed: {ex.Message}");
                 // I10: Gracefully hide WebView panels if runtime is missing
                 try { loaderStandby.Visibility = Visibility.Collapsed; } catch { }
                 try { loaderActive.Visibility = Visibility.Collapsed; } catch { }
@@ -102,22 +103,11 @@ namespace SoftcurseVaultCleaner
 
         private void InitializeUI()
         {
-            if (IsAdministrator())
-            {
-                txtAdminStatus.Text = "[ADMIN PRIVILEGES: ACTIVE]";
-                txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(0, 255, 0));
-                if (btnRestartAdmin != null) btnRestartAdmin.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                txtAdminStatus.Text = "[ADMIN PRIVILEGES: INACTIVE]";
-                txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(255, 0, 0));
-                if (btnRestartAdmin != null) btnRestartAdmin.Visibility = Visibility.Visible;
-            }
+            txtAdminStatus.Text = "[STANDARD USER MODE]";
+            txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(74, 222, 128));
 
-            LogMessage("=== SOFTCURSE VAULT CLEANER v3.0 INITIALIZED ===");
+            LogMessage($"=== SOFTCURSE VAULT CLEANER v{UpdateService.GetCurrentVersion()} INITIALIZED ===");
             LogMessage("SYSTEM: MVVM architecture active");
             LogMessage("READY: Awaiting cleanup protocol initiation");
 
@@ -134,10 +124,9 @@ namespace SoftcurseVaultCleaner
                     "Welcome to Softcurse Vault Cleaner! \u267b\n\n" +
                     "\u2022 \ud83e\uddf9 VAULT CLEANER \u2014 Quick cleanup of temp files, caches, and logs\n" +
                     "\u2022 \ud83d\udcbd DISK ANALYZER \u2014 Deep scan with junk finder, duplicates, and large files\n" +
-                    "\u2022 \ud83d\udc51 SUBSCRIPTION \u2014 Unlock Pro features with a license key\n" +
                     "\u2022 \u2753 FAQ \u2014 Common questions and answers\n" +
                     "\u2022 \u2699\ufe0f SETTINGS \u2014 Customize your cleanup preferences\n\n" +
-                    "TIP: Run as Administrator for full cleanup access.\n" +
+                    "TIP: The app runs in standard-user mode; supported maintenance elevates separately.\n" +
                     "TIP: Close the app to minimize to the system tray.",
                     "Welcome to Vault Cleaner", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -190,13 +179,6 @@ namespace SoftcurseVaultCleaner
             _trayIcon.Visible = false;
             _trayIcon.Dispose();
             Application.Current.Shutdown();
-        }
-
-        private bool IsAdministrator()
-        {
-            var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-            var principal = new System.Security.Principal.WindowsPrincipal(identity);
-            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
         }
 
         private void LogMessage(string message)
@@ -318,29 +300,6 @@ namespace SoftcurseVaultCleaner
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             // Reserved for future keyboard shortcuts
-        }
-
-        // I9: Restart application with admin privileges
-        private void BtnRestartAsAdmin_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var exePath = Process.GetCurrentProcess().MainModule?.FileName;
-                if (exePath != null)
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = exePath,
-                        UseShellExecute = true,
-                        Verb = "runas"
-                    });
-                    Application.Current.Shutdown();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Admin restart failed: {ex.Message}");
-            }
         }
 
         private void MinimizeWindow(object sender, RoutedEventArgs e)

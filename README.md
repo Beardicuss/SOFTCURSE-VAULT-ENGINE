@@ -20,28 +20,25 @@ Forged with dark neon aesthetics and powered by modular architecture, the Engine
 # 🌑 Core Modules
 
 ## 1. Vault Cleaner
-Advanced cleanup subsystem that removes unnecessary files, caches, logs, and system debris.
+Standard-user cleanup subsystem that previews narrowly scoped, recoverable file operations.
 
 ### Features
 - **Recycle Bin Purge**
-- **System & User TEMP Cleanup**
+- **User TEMP Cleanup**
 - **Browser Cache Removal** (Chrome, Edge, Firefox, Brave)
-- **Windows Update Cleanup**
-- **Microsoft Store Cache Reset**
+- **UWP Temporary-State Cleanup**
 - **Python PIP Cache Cleanup**
-- **Graphics Driver Cache Purge** (NVIDIA, AMD, Intel)
+- **Per-user Graphics Driver Cache Cleanup** (NVIDIA, AMD, Intel)
 - **Unreal Engine Derived Data Cache Cleanup**
 - **Android SDK System Image Cleanup**
-- **Event Log Purging**
-- **Font Cache Rebuild**
-- **DISM Component Store Cleanup (ResetBase)**
-- **Old Installer Removal** (MSI/MSP older than 6 months)
+- **DISM Component Store Cleanup** through a fixed, separately elevated helper (no ResetBase)
 - **Thumbnail Cache Cleanup**
 
 ### Advanced Capabilities
 - **Quick Scan** — Estimate recoverable space
-- **Pagefile Relocation** — Move paging file to another drive
-- **System Restore Relocation** — Free C: drive storage
+- **Exact Target Preview** — Review paths, risk, privilege, and estimated size before execution
+- **Protected-Path Validation** — Reject roots, protected folders, junctions, and mount points
+- **Recoverable Deletion** — Filesystem targets are sent to the Recycle Bin
 - **Detailed Progress & UI Feedback**
 - **Full Logging Pipeline** (`D:\VaultHunterLogs`)
 - **Async operations** (UI never freezes)
@@ -104,33 +101,56 @@ Each module is implemented as a standalone vault window using the shared Softcur
 
 # 🖥 Requirements
 
-- **Windows 10 or Windows 11**
-- **.NET 6.0 Windows Desktop Runtime**
-- **Administrator privileges** (recommended)
-- **~1 MB disk space** for the engine itself
+- **64-bit Windows 10 or Windows 11**
+- **Microsoft Edge WebView2 Evergreen Runtime** for animated loaders; cleanup remains usable without it
+- **Standard-user account**; UAC is requested only for optional Windows component cleanup
+- **Approximately 250 MB disk space** for the self-contained x64 release
 
 ---
 
 # 🛠 Building From Source
 
 ### Prerequisites
-1. Install **.NET 6.0 SDK** or newer
+1. Install the **.NET 10.0.400 SDK** selected by `global.json`
 2. Install **Visual Studio 2022** (or VS Code with C# extensions)
+
+Package versions are centralized in `Directory.Packages.props`, and locked restore files are committed for repeatable builds.
 
 ### Build
 
 ```powershell
-cd "d:\Projects\Completed\Softcurse Vault Engine"
-dotnet restore "VaultEngine\VaultEngine.csproj"
-dotnet build "VaultEngine\VaultEngine.csproj" --configuration Release
-dotnet run --project "VaultEngine\VaultEngine.csproj"
-````
+cd "Win11 Auto-Clean"
+dotnet restore "Win11 Auto-Clean.sln"
+dotnet build "Win11 Auto-Clean.sln" --configuration Release
+dotnet run --project "Win11 Auto-Clean.csproj"
+```
 
 ### Output
 
 ```
-VaultEngine/bin/Release/net6.0-windows/SoftcurseVaultEngine.exe
+bin/Release/net10.0-windows/Win11 Auto-Clean.exe
 ```
+
+### Safety verification
+
+```powershell
+dotnet restore "Win11 Auto-Clean.sln" --locked-mode
+dotnet build "Win11 Auto-Clean.sln" --configuration Release --no-restore -warnaserror
+dotnet run --project "SafeCleanupEngine.Tests/SafeCleanupEngine.Tests.csproj" --configuration Release --no-build
+./scripts/Test-ReleaseIntegrity.ps1
+```
+
+Destructive cleanup and installer lifecycle testing is restricted to disposable Windows VMs. See [tests/vm/README.md](tests/vm/README.md) for the fail-closed Hyper-V harness and required Windows 10/11 test matrix.
+
+---
+
+# 🔐 Licensing and Releases
+
+All current application features are available without a license key. The former placeholder subscription flow was removed because it did not provide real server-backed entitlement validation.
+
+Production releases are built only from a clean, exact version tag. The release pipeline creates a self-contained Windows x64 build, signs and timestamps executables and the installer, generates an SBOM and checksums, and publishes provenance. Update metadata is RSA-signed; downloaded installers must also match the signed size and SHA-256 digest, pass Windows Authenticode verification, and match the pinned signer certificate.
+
+The update channel deliberately fails closed until production trust anchors and CI signing secrets are provisioned. See [RELEASE.md](RELEASE.md) for the release procedure.
 
 ---
 
@@ -138,7 +158,7 @@ VaultEngine/bin/Release/net6.0-windows/SoftcurseVaultEngine.exe
 
 ### Vault Cleaner
 
-1. Launch as Administrator
+1. Launch normally as a standard user
 2. Configure cleanup options
 3. Run **Quick Scan**
 4. Run **Initiate Cleanup Protocol**
@@ -156,11 +176,10 @@ VaultEngine/bin/Release/net6.0-windows/SoftcurseVaultEngine.exe
 
 # ⚠ Safety Guidelines
 
-* Cleanup operations are destructive — **no undo**
-* System-level actions may require reboot
-* Always review quick scan results
-* Avoid scanning protected system folders unless necessary
-* Pagefile changes require restart
+* Always review the exact confirmation preview before cleanup
+* Filesystem cleanup is sent to the Recycle Bin, but emptying the Recycle Bin itself is not reversible
+* Protected system locations and unsafe custom roots are blocked
+* Windows component cleanup is the only operation that requests UAC
 
 ---
 
@@ -234,6 +253,6 @@ VaultEngine/
 # 💀 Credits
 
 **Softcurse Vault Engine**
-Forged in WPF (.NET 6) using MVVM and dark neon aesthetics.
+Forged in WPF (.NET 10) using MVVM and dark neon aesthetics.
 
 ```

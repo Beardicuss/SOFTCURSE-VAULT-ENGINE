@@ -1,14 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Win11 Auto-Clean</AssemblyName>
     <RootNamespace>SoftcurseVaultCleaner</RootNamespace>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <NoWarn>CA1416</NoWarn><!-- Suppress platform compatibility warnings for Windows-only app -->
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationIcon>Resources\vault.ico</ApplicationIcon>
   <ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
 
@@ -23,12 +24,52 @@
     </Content>
     <!-- vault.ico must be in output dir for system tray icon at runtime -->
     <Content Include="Resources\vault.ico">
+      <Link>vault.ico</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="SafeCleanupEngine.Tests\**\*.cs" />
+    <Compile Remove="PrivilegedMaintenanceHelper\**\*.cs" />
+    <EmbeddedResource Remove="SafeCleanupEngine.Tests\**\*" />
+    <EmbeddedResource Remove="PrivilegedMaintenanceHelper\**\*" />
+    <None Remove="SafeCleanupEngine.Tests\**\*" />
+    <None Remove="PrivilegedMaintenanceHelper\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="PrivilegedMaintenanceHelper\PrivilegedMaintenanceHelper.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PrivilegedHelperOutputDirectory>PrivilegedMaintenanceHelper\bin\$(Configuration)\$(TargetFramework)\</PrivilegedHelperOutputDirectory>
+    <PrivilegedHelperOutputDirectory Condition="'$(RuntimeIdentifier)' != ''">PrivilegedMaintenanceHelper\bin\$(Configuration)\$(TargetFramework)\$(RuntimeIdentifier)\</PrivilegedHelperOutputDirectory>
+  </PropertyGroup>
+
+  <Target Name="CopyPrivilegedMaintenanceHelper" AfterTargets="Build">
+    <ItemGroup>
+      <PrivilegedHelperFiles Include="$(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.exe;
+                                      $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.dll;
+                                      $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.deps.json;
+                                      $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PrivilegedHelperFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyPrivilegedMaintenanceHelperToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PublishedPrivilegedHelperFiles Include="$(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.exe;
+                                               $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.dll;
+                                               $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.deps.json;
+                                               $(PrivilegedHelperOutputDirectory)Softcurse.PrivilegedMaintenanceHelper.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PublishedPrivilegedHelperFiles)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

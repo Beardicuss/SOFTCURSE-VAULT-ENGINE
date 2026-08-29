@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -235,7 +236,7 @@ namespace SoftcurseVaultCleaner
                         {
                             Label = r.Label, FullPath = r.FullPath, Size = r.Size,
                             Safe = r.Safe, Category = r.Category, Note = r.Note,
-                            IsFile = r.IsFile, IsChecked = r.Safe  // pre-check safe items
+                            IsFile = r.IsFile, IsChecked = false
                         };
                         clone.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateSuggSelectedSize(); };
                         SuggestionItems.Add(clone);
@@ -287,19 +288,19 @@ namespace SoftcurseVaultCleaner
                             FilePath=g.Files[0], FileSize=g.FileSize, Hash=g.Hash,
                             WastedInfo=$"Wasted: {g.WastedStr}", IsChecked=false };
                         DupeRows.Add(header);
-                        // Remaining files — duplicates (checked by default)
+                        // Phase 1: destructive selections always require an explicit user choice.
                         foreach (var f in g.Files.Skip(1))
                         {
                             var row = new DupeRow { GroupId=g.GroupId, IsHeader=false, IsDupe=true,
                                 FilePath=f, FileSize=g.FileSize, Hash="(duplicate)",
-                                WastedInfo="", IsChecked=true };
+                                WastedInfo="", IsChecked=false };
                             row.PropertyChanged += (s,e) => { if (e.PropertyName==nameof(DupeRow.IsChecked)) UpdateDupeSelectedSize(); };
                             DupeRows.Add(row);
                         }
                     }
                     UpdateDupeSelectedSize();
                     Status = groups.Count > 0
-                        ? $"Found {groups.Count} duplicate groups — {SizeFormatter.Format(totalWaste)} wasted. Duplicates are pre-checked."
+                        ? $"Found {groups.Count} duplicate groups — {SizeFormatter.Format(totalWaste)} potentially duplicated. Review and select files manually."
                         : "No duplicates found.";
                     Progress = 100;
                 });
@@ -315,11 +316,9 @@ namespace SoftcurseVaultCleaner
             var selected = JunkFiltered.Where(j => j.IsChecked).ToList();
             if (selected.Count == 0) { Status = "No items checked — tick checkboxes first."; return; }
 
-            long totalSize = selected.Sum(j => j.Size);
-            string msg = $"DELETE {selected.Count} item(s) — {SizeFormatter.Format(totalSize)}?\n\n"
-                       + string.Join("\n", selected.Take(8).Select(j => $"  • {j.Label}  ({j.SizeStr})"))
-                       + (selected.Count > 8 ? $"\n  … and {selected.Count - 8} more" : "")
-                       + "\n\nThis CANNOT be undone.";
+            var preview = _svc.PreviewJunk(selected);
+            if (!EnsurePreviewCanProceed(preview)) return;
+            string msg = BuildPreviewMessage(preview, "Move selected cleanup contents to the Recycle Bin?");
 
             if (MessageBox.Show(msg, "Confirm Deletion", MessageBoxButton.YesNo,
                     MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -332,7 +331,7 @@ namespace SoftcurseVaultCleaner
                 Dispatch(() =>
                 {
                     // Remove successfully deleted items from both collections
-                    var toRemove = JunkItems.Where(j => j.IsChecked).ToList();
+                    var toRemove = JunkItems.Where(j => j.IsChecked && IsJunkTargetCleared(j)).ToList();
                     foreach (var item in toRemove) { JunkItems.Remove(item); }
                     ApplyJunkFilter();
                     UpdateJunkSelectedSize();
@@ -358,11 +357,9 @@ namespace SoftcurseVaultCleaner
             var selected = LargeFiles.Where(f => f.IsChecked).ToList();
             if (selected.Count == 0) { Status = "No files checked — tick checkboxes first."; return; }
 
-            long totalSize = selected.Sum(f => f.Size);
-            string msg = $"PERMANENTLY DELETE {selected.Count} file(s) — {SizeFormatter.Format(totalSize)}?\n\n"
-                       + string.Join("\n", selected.Take(8).Select(f => $"  • {System.IO.Path.GetFileName(f.Path)}  ({f.SizeStr})"))
-                       + (selected.Count > 8 ? $"\n  … and {selected.Count - 8} more" : "")
-                       + "\n\nThis CANNOT be undone.";
+            var preview = _svc.PreviewFiles(selected.Select(file => file.Path), "User-selected large file");
+            if (!EnsurePreviewCanProceed(preview)) return;
+            string msg = BuildPreviewMessage(preview, "Move selected files to the Recycle Bin?");
 
             if (MessageBox.Show(msg, "Confirm File Deletion", MessageBoxButton.YesNo,
                     MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -374,7 +371,7 @@ namespace SoftcurseVaultCleaner
                 var result = await _svc.DeleteLargeFilesAsync(selected, m => Dispatch(() => Status = m), _cts.Token);
                 Dispatch(() =>
                 {
-                    var toRemove = LargeFiles.Where(f => f.IsChecked).ToList();
+                    var toRemove = LargeFiles.Where(f => f.IsChecked && !File.Exists(f.Path)).ToList();
                     foreach (var item in toRemove) LargeFiles.Remove(item);
                     UpdateLargeSelectedSize();
                     RefreshDriveInfo();
@@ -396,11 +393,10 @@ namespace SoftcurseVaultCleaner
             var selected = DupeRows.Where(r => r.IsDupe && r.IsChecked).ToList();
             if (selected.Count == 0) { Status = "No duplicate files checked."; return; }
 
-            long totalSize = selected.Sum(r => r.FileSize);
-            string msg = $"DELETE {selected.Count} duplicate file(s) — {SizeFormatter.Format(totalSize)}?\n\n"
-                       + string.Join("\n", selected.Take(8).Select(r => $"  • {System.IO.Path.GetFileName(r.FilePath)}"))
-                       + (selected.Count > 8 ? $"\n  … and {selected.Count - 8} more" : "")
-                       + "\n\nThe FIRST file in each group is kept. This CANNOT be undone.";
+            var preview = _svc.PreviewFiles(selected.Select(row => row.FilePath), "User-confirmed duplicate");
+            if (!EnsurePreviewCanProceed(preview)) return;
+            string msg = BuildPreviewMessage(preview,
+                "Move selected duplicate files to the Recycle Bin? The first file in each group is kept.");
 
             if (MessageBox.Show(msg, "Confirm Duplicate Deletion", MessageBoxButton.YesNo,
                     MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -412,7 +408,7 @@ namespace SoftcurseVaultCleaner
                 var result = await _svc.DeleteDupesAsync(DupeRows, m => Dispatch(() => Status = m), _cts.Token);
                 Dispatch(() =>
                 {
-                    var toRemove = DupeRows.Where(r => r.IsDupe && r.IsChecked).ToList();
+                    var toRemove = DupeRows.Where(r => r.IsDupe && r.IsChecked && !File.Exists(r.FilePath)).ToList();
                     foreach (var row in toRemove) DupeRows.Remove(row);
                     UpdateDupeSelectedSize();
                     RefreshDriveInfo();
@@ -548,13 +544,11 @@ namespace SoftcurseVaultCleaner
         {
             // Only delete safe items that are checked
             var selected = SuggestionItems.Where(j => j.IsChecked && j.Safe).ToList();
-            if (selected.Count == 0) { Status = "No safe items checked — only ✅ Safe items can be deleted here."; return; }
+            if (selected.Count == 0) { Status = "No recommended items selected. Review and select targets explicitly."; return; }
 
-            long totalSize = selected.Sum(j => j.Size);
-            string msg = $"DELETE {selected.Count} safe item(s) — {SizeFormatter.Format(totalSize)}?\n\n"
-                       + string.Join("\n", selected.Take(8).Select(j => $"  • {j.Label}  ({j.SizeStr})"))
-                       + (selected.Count > 8 ? $"\n  … and {selected.Count - 8} more" : "")
-                       + "\n\nThis CANNOT be undone.";
+            var preview = _svc.PreviewJunk(selected);
+            if (!EnsurePreviewCanProceed(preview)) return;
+            string msg = BuildPreviewMessage(preview, "Move selected cleanup contents to the Recycle Bin?");
 
             if (MessageBox.Show(msg, "Confirm Deletion", MessageBoxButton.YesNo,
                     MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -566,11 +560,13 @@ namespace SoftcurseVaultCleaner
                 var result = await _svc.DeleteJunkAsync(selected, m => Dispatch(() => Status = m), _cts.Token);
                 Dispatch(() =>
                 {
-                    // Remove deleted items from both Suggestions and JunkItems/JunkFiltered
-                    foreach (var item in selected)
+                    // Only remove entries whose targets are now empty/missing.
+                    foreach (var item in selected.Where(IsJunkTargetCleared).ToList())
                     {
                         SuggestionItems.Remove(item);
-                        JunkItems.Remove(item);
+                        var matching = JunkItems.FirstOrDefault(j =>
+                            string.Equals(j.FullPath, item.FullPath, StringComparison.OrdinalIgnoreCase));
+                        if (matching != null) JunkItems.Remove(matching);
                     }
                     ApplyJunkFilter();
                     UpdateSuggSelectedSize();
@@ -588,6 +584,54 @@ namespace SoftcurseVaultCleaner
             }
             catch (OperationCanceledException) { Dispatch(() => Status = "Deletion cancelled."); }
             finally { Dispatch(() => IsScanning = false); }
+        }
+
+        private static string BuildPreviewMessage(
+            IReadOnlyList<CleanupPreviewItem> preview,
+            string question)
+        {
+            var allowed = preview.Where(item => item.IsAllowed).ToList();
+            var blocked = preview.Where(item => !item.IsAllowed).ToList();
+            long estimatedBytes = allowed.Sum(item => item.EstimatedBytes);
+
+            string message = $"{question}\n\nAllowed: {allowed.Count} item(s), approximately {SizeFormatter.Format(estimatedBytes)}\n"
+                           + string.Join("\n", allowed.Take(8).Select(item => $"  • {item.Target.DisplayName}\n    {item.CanonicalPath}"))
+                           + (allowed.Count > 8 ? $"\n  … and {allowed.Count - 8} more" : "");
+
+            if (blocked.Count > 0)
+            {
+                message += $"\n\nBlocked by safety policy: {blocked.Count}\n"
+                         + string.Join("\n", blocked.Take(5).Select(item =>
+                             $"  • {item.Target.DisplayName}: {item.ValidationMessage}"));
+            }
+
+            return message + "\n\nDeletion is recoverable from the Recycle Bin.";
+        }
+
+        private static bool EnsurePreviewCanProceed(IReadOnlyList<CleanupPreviewItem> preview)
+        {
+            if (preview.Any(item => item.IsAllowed)) return true;
+
+            MessageBox.Show(
+                BuildPreviewMessage(preview, "No selected target passed the cleanup safety policy."),
+                "Cleanup Blocked",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+
+        private static bool IsJunkTargetCleared(JunkTarget item)
+        {
+            try
+            {
+                if (item.IsFile) return !File.Exists(item.FullPath);
+                return !Directory.Exists(item.FullPath) ||
+                       !Directory.EnumerateFileSystemEntries(item.FullPath).Any();
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void ClearAll()
@@ -668,7 +712,7 @@ namespace SoftcurseVaultCleaner
                         {
                             Label = r.Label, FullPath = r.FullPath, Size = r.Size,
                             Safe = r.Safe, Category = r.Category, Note = r.Note,
-                            IsFile = r.IsFile, IsChecked = r.Safe
+                            IsFile = r.IsFile, IsChecked = false
                         };
                         clone.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(JunkTarget.IsChecked)) UpdateSuggSelectedSize(); };
                         SuggestionItems.Add(clone);

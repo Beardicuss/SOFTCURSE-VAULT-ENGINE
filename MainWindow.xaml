@@ -342,23 +342,12 @@
                                         <DropShadowEffect Color="#00FFFF" BlurRadius="10" ShadowDepth="0"/>
                                     </TextBlock.Effect>
                                 </TextBlock>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock x:Name="txtAdminStatus"
-                                               Text="[ADMIN PRIVILEGES: CHECKING...]"
-                                               FontFamily="Consolas"
-                                               FontSize="10"
-                                               Foreground="#FF00FF"
-                                               VerticalAlignment="Center"/>
-                                    <Button x:Name="btnRestartAdmin"
-                                            Content="⚡ Restart as Admin"
-                                            FontFamily="Consolas" FontSize="9"
-                                            Margin="10,0,0,0" Padding="8,2"
-                                            Background="#1A1A1A" Foreground="#FF4444"
-                                            BorderBrush="#FF4444" BorderThickness="1"
-                                            Cursor="Hand"
-                                            Click="BtnRestartAsAdmin_Click"
-                                            Visibility="Collapsed"/>
-                                </StackPanel>
+                                <TextBlock x:Name="txtAdminStatus"
+                                           Text="[STANDARD USER MODE]"
+                                           FontFamily="Consolas"
+                                           FontSize="10"
+                                           Foreground="#4ADE80"
+                                           VerticalAlignment="Center"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10">
@@ -526,15 +515,15 @@
                                         <CheckBox x:Name="chkCache" Content="Clear application cache" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanCache}"/>
-                                        <CheckBox x:Name="chkLogs" Content="Remove old log files" 
+                                        <CheckBox x:Name="chkLogs" Content="Windows Event Log clearing — removed for safety"
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="{Binding CleanLogs}"/>
+                                                  IsChecked="False" IsEnabled="False"/>
                                         <CheckBox x:Name="chkRecycleBin" Content="Empty recycle bin" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanRecycleBin}"/>
-                                        <CheckBox x:Name="chkPrefetch" Content="Clear prefetch data" 
+                                        <CheckBox x:Name="chkPrefetch" Content="Windows Prefetch clearing — removed for safety"
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="{Binding CleanPrefetch}"/>
+                                                  IsChecked="False" IsEnabled="False"/>
 
                                         <TextBlock Text="Extended cleanup:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
@@ -547,11 +536,11 @@
                                         <CheckBox x:Name="chkSystemDumps" Content="System Diagnostics (CrashDumps, WER)" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanSystemDumps}"/>
-                                        <CheckBox x:Name="chkDNS" Content="Flush DNS &amp; Network ARP caches" 
+                                        <CheckBox x:Name="chkDNS" Content="Flush DNS resolver cache"
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanDNS}"/>
-                                        <CheckBox x:Name="chkExtreme" Content="Extreme Wipe (Docker, OS Privacy)" 
-                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" Foreground="#FF5555"
+                                        <CheckBox x:Name="chkExtreme" Content="Explorer privacy data (Recent items, icon cache)"
+                                                  Style="{StaticResource TechCheckBox}" Margin="0,5"
                                                   IsChecked="{Binding CleanExtreme}"/>
 
                                         <TextBlock Text="Custom folders to clean:" Foreground="#CCCCCC" 
@@ -573,13 +562,15 @@
 
                                         <TextBlock Text="Advanced options:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
-                                        <CheckBox x:Name="chkDeepScan" Content="Deep scan mode" 
+                                        <CheckBox x:Name="chkDeepScan" Content="Windows component cleanup (UAC required)"
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="{Binding DeepScanMode}"/>
-                                        <CheckBox x:Name="chkRecycleBinMode" Content="Safe delete (Recycle Bin)" 
+                                                  IsChecked="{Binding DeepScanMode}"
+                                                  ToolTip="Runs DISM StartComponentCleanup through the fixed allowlisted helper; ResetBase is never used."/>
+                                        <CheckBox x:Name="chkRecycleBinMode" Content="Recoverable deletion (Recycle Bin — enforced)"
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding UseRecycleBin}"
-                                                  ToolTip="Send files to Recycle Bin instead of permanent deletion"/>
+                                                  IsEnabled="False"
+                                                  ToolTip="Filesystem cleanup is always sent to the Recycle Bin during Phase 1"/>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Border>
@@ -822,7 +813,7 @@
                             <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
                             <DataGridTextColumn Header="  Location"    Binding="{Binding Label}"    Width="240" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Size"          Binding="{Binding SizeStr}"  Width="90"  IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Safe?"         Binding="{Binding SafeStr}"  Width="80"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Risk"          Binding="{Binding SafeStr}"  Width="95"  IsReadOnly="True"/>
                             <DataGridTextColumn Header="Category"      Binding="{Binding Category}" Width="90"  IsReadOnly="True"/>
                             <DataGridTextColumn Header="Note / Action" Binding="{Binding Note}"     Width="*"   IsReadOnly="True"/>
                         </DataGrid.Columns>
@@ -1041,7 +1032,7 @@
                                 Command="{Binding SelectAllSuggestionsCommand}"/>
                         <Button Content="☐ Deselect All"     Style="{StaticResource TechButton}" FontSize="10" Padding="8,3" Margin="2,0"
                                 Command="{Binding DeselectAllSuggestionsCommand}"/>
-                        <TextBlock Text="  Only ✅ Safe items can be deleted from here"
+                        <TextBlock Text="  Recommended items still require review and explicit selection"
                                    Foreground="#555" FontFamily="Consolas" FontSize="10" VerticalAlignment="Center" Margin="12,0"/>
                     </StackPanel>
 
@@ -1081,7 +1072,7 @@
                                 Width="36"/>
                             <DataGridTextColumn Header="  Item"     Binding="{Binding Label}"   Width="260" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Size"       Binding="{Binding SizeStr}" Width="90"  IsReadOnly="True"/>
-                            <DataGridTextColumn Header="Safe?"      Binding="{Binding SafeStr}" Width="80"  IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Risk"       Binding="{Binding SafeStr}" Width="95"  IsReadOnly="True"/>
                             <DataGridTextColumn Header="Category"   Binding="{Binding Category}" Width="90"  IsReadOnly="True"/>
                             <DataGridTextColumn Header="Action"     Binding="{Binding Note}"    Width="*"   IsReadOnly="True"/>
                         </DataGrid.Columns>
@@ -1217,92 +1208,6 @@
     </Grid>
 </TabItem>
 
-<!-- ══ TAB 4: SUBSCRIPTION ══ -->
-<TabItem Header="  👑 SUBSCRIPTION  " Style="{StaticResource TechTabItem}">
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
-        <StackPanel Margin="30,20" MaxWidth="700">
-            <!-- Plan Status Banner -->
-            <Border Background="#0a1a1a" BorderBrush="#00FFFF" BorderThickness="2" Padding="20" Margin="0,0,0,20">
-                <Border.Effect>
-                    <DropShadowEffect Color="#00FFFF" BlurRadius="15" ShadowDepth="0" Opacity="0.3"/>
-                </Border.Effect>
-                <StackPanel>
-                    <TextBlock Text="CURRENT PLAN" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,5"/>
-                    <TextBlock Text="{Binding License.PlanDisplayName}" FontFamily="Consolas" FontSize="24" FontWeight="Bold" Foreground="#00FFFF"/>
-                    <TextBlock Text="{Binding License.StatusMessage}" FontFamily="Consolas" FontSize="11" Foreground="#4ade80" Margin="0,5,0,0"/>
-                </StackPanel>
-            </Border>
-
-            <!-- License Activation -->
-            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20" Margin="0,0,0,15">
-                <StackPanel>
-                    <TextBlock Text="ACTIVATE LICENSE" FontFamily="Consolas" FontSize="14" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,15"/>
-                    <TextBlock Text="Email:" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding LicenseEmailInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource TechTextBox}" Margin="0,0,0,10"/>
-                    <TextBlock Text="License Key:" FontFamily="Consolas" FontSize="11" Foreground="#888" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding LicenseKeyInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource TechTextBox}" Margin="0,0,0,10"
-                             FontFamily="Consolas"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                        <Button Content="🔑 ACTIVATE" Style="{StaticResource TechButton}" 
-                                Padding="16,6" Margin="0,0,8,0"
-                                Command="{Binding ActivateLicenseCommand}"/>
-                        <Button Content="✕ DEACTIVATE" Style="{StaticResource TechButton}"
-                                Padding="12,6" Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"
-                                Command="{Binding DeactivateLicenseCommand}"/>
-                    </StackPanel>
-                    <TextBlock Text="{Binding LicenseMessage}" FontFamily="Consolas" FontSize="11" 
-                               Foreground="#fbbf24" Margin="0,10,0,0" TextWrapping="Wrap"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Feature Comparison -->
-            <Border Background="#050505" BorderBrush="#333" BorderThickness="1" Padding="20">
-                <StackPanel>
-                    <TextBlock Text="FEATURE COMPARISON" FontFamily="Consolas" FontSize="14" FontWeight="Bold" Foreground="#00FFFF" Margin="0,0,0,15"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="80"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
-                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
-                        </Grid.RowDefinitions>
-                        <!-- Header -->
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="FREE" FontFamily="Consolas" FontSize="10" Foreground="#888" HorizontalAlignment="Center" FontWeight="Bold"/>
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="PRO" FontFamily="Consolas" FontSize="10" Foreground="#00FFFF" HorizontalAlignment="Center" FontWeight="Bold"/>
-                        <!-- Rows -->
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Basic Cleanup" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="1" Grid.Column="1" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="1" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Quick Scan" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="2" Grid.Column="1" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="2" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Deep Scan Mode" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="3" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="3" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Duplicate Finder" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="4" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="4" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Large File Finder" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="5" Grid.Column="1" Text="Top 20" FontFamily="Consolas" FontSize="10" Foreground="#fbbf24" HorizontalAlignment="Center" Margin="0,4"/>
-                        <TextBlock Grid.Row="5" Grid.Column="2" Text="✅ All" FontFamily="Consolas" FontSize="10" Foreground="#4ade80" HorizontalAlignment="Center" Margin="0,4"/>
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Safe Delete Mode" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="6" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="6" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="7" Grid.Column="0" Text="Auto-Updates" FontFamily="Consolas" FontSize="11" Foreground="#ccc" Margin="0,4"/>
-                        <TextBlock Grid.Row="7" Grid.Column="1" Text="❌" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                        <TextBlock Grid.Row="7" Grid.Column="2" Text="✅" HorizontalAlignment="Center" FontSize="12" Margin="0,4"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
-</TabItem>
-
 <!-- ══ TAB 4: FAQ ══ -->
 <TabItem Header="  ❓ FAQ  " Style="{StaticResource TechTabItem}">
     <ScrollViewer VerticalScrollBarVisibility="Auto" Background="#020202">
@@ -1321,33 +1226,33 @@
             </Expander>
             <Expander Header="Is it safe to use?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Yes. The app only targets well-known temporary and cache locations. Items marked ✅ Safe are verified to be deletable without risk. Items marked ⚠ Review should be checked before deletion. You can also enable 'Safe Delete' mode which sends files to the Recycle Bin instead of permanently deleting them."/>
+                    Text="Every cleanup can have side effects. Recommended targets are narrow cache or temporary locations, but you must still review and explicitly select them. Protected roots, links, junctions, and unsafe custom folders are blocked by the safety policy."/>
             </Expander>
             <Expander Header="Do I need administrator privileges?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Running as administrator is recommended for full functionality. Without admin rights, some system-level cleanup operations (like clearing Windows Update cache or Prefetch data) may not work. Use the '⚡ Restart as Admin' button in the title bar to elevate privileges."/>
+                    Text="No. The main app intentionally runs as a standard user. A separate, narrowly allowlisted helper requests elevation only for a supported maintenance action that genuinely requires it."/>
             </Expander>
 
             <!-- Cleanup -->
             <TextBlock Text="─── CLEANUP ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
             <Expander Header="What gets deleted during cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Depending on your configuration: temporary files (user and system TEMP), browser caches (Chrome, Edge, Firefox), Windows Update downloads, thumbnail caches, prefetch data, event logs, and any custom folders you specify."/>
+                    Text="Depending on your explicit selections: user temporary files, narrow browser caches, thumbnail caches, selected developer or application caches, user crash reports, Explorer privacy data, and approved custom folders. Protected Windows maintenance locations are not deleted directly."/>
             </Expander>
             <Expander Header="Can I undo a cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="If you enable 'Safe Delete (Recycle Bin)' mode in the configuration panel, deleted files go to the Recycle Bin and can be restored. Without this option, deletions are permanent. We recommend enabling Safe Delete for your first few cleanups."/>
+                    Text="Filesystem cleanup is currently forced through the Recycle Bin and can normally be restored there. Emptying the Recycle Bin and Windows commands or settings changes are not covered by that recovery mechanism; the preview identifies those separately."/>
             </Expander>
-            <Expander Header="What is Deep Scan mode?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+            <Expander Header="What is Windows component cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Deep Scan performs a more thorough analysis of your system, scanning additional locations and file types. It takes longer but can find significantly more recoverable space. This is a Pro feature."/>
+                    Text="This optional action runs the supported DISM StartComponentCleanup command through a separate fixed-command helper. Windows shows a UAC prompt for that action only. ResetBase, Installer-cache deletion, pagefile changes, and shadow-copy deletion are not performed."/>
             </Expander>
 
             <!-- Disk Analyzer -->
             <TextBlock Text="─── DISK ANALYZER ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
             <Expander Header="How does the junk scanner work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="The junk scanner identifies known temporary and cache directories across your system, calculates their sizes, and categorizes them as Safe (✅) or Review (⚠). Safe items can be deleted without risk; Review items may contain data you want to keep."/>
+                    Text="The junk scanner measures known locations and categorizes them as Recommended or Review. Nothing is preselected. Recommended means lower risk, not risk-free; inspect the exact path in the confirmation preview before proceeding."/>
             </Expander>
             <Expander Header="How does duplicate finder work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
@@ -1365,26 +1270,15 @@
                     Text="The app will not automatically delete anything. The Large Files tab is an information tool — it shows you what's using space, and YOU decide what to delete. Always review file paths before deleting. Avoid deleting files from Windows, Program Files, or other system directories."/>
             </Expander>
 
-            <!-- Subscription -->
-            <TextBlock Text="─── SUBSCRIPTION ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
-            <Expander Header="How do I activate my Pro license?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
-                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Go to the 👑 Subscription tab, enter your email and license key, then click 'Activate'. Your license will be stored locally and you'll immediately gain access to all Pro features."/>
-            </Expander>
-            <Expander Header="How do I cancel or renew?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
-                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="License management is handled through the Softcurse website. Visit your account dashboard to cancel, renew, or upgrade your subscription. To deactivate locally, use the 'Deactivate' button on the Subscription tab."/>
-            </Expander>
-
             <!-- Troubleshooting -->
             <TextBlock Text="─── TROUBLESHOOTING ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
             <Expander Header="The app won't start or crashes on launch" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Ensure you have .NET 8 Runtime installed. If the WebView2 component fails to initialize, the app will still work but without animated loaders. Try running as administrator. If issues persist, delete the settings file at %APPDATA%\SoftcurseVaultCleaner\settings.json and restart."/>
+                    Text="The installer is self-contained and does not require a separate .NET runtime. If WebView2 is unavailable, the app still works without animated loaders. If issues persist, close the app, rename the settings file at %APPDATA%\SoftcurseVaultCleaner\settings.json, and restart."/>
             </Expander>
             <Expander Header="Cleanup failed or some files weren't deleted" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Some files may be locked by running processes. Close browsers and background applications before cleaning. Running as administrator helps access system-level directories. Check the System Log for specific error messages."/>
+                    Text="Some files may be locked by running processes. Close browsers and background applications before cleaning. Protected system directories are intentionally not cleaned by the standard-user app. Check the System Log for specific results."/>
             </Expander>
         </StackPanel>
     </ScrollViewer>
@@ -1422,14 +1316,14 @@
                               IsChecked="{Binding Settings.DefaultCleanTemp}"/>
                     <CheckBox Content="Clear application cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanCache}"/>
-                    <CheckBox Content="Remove old log files" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="{Binding Settings.DefaultCleanLogs}"/>
+                    <CheckBox Content="Windows Event Log clearing — removed for safety" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="False" IsEnabled="False"/>
                     <CheckBox Content="Empty recycle bin" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanRecycleBin}"/>
-                    <CheckBox Content="Clear prefetch data" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="{Binding Settings.DefaultCleanPrefetch}"/>
-                    <CheckBox Content="Safe delete (Recycle Bin)" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="{Binding Settings.DefaultUseRecycleBin}"/>
+                    <CheckBox Content="Windows Prefetch clearing — removed for safety" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="False" IsEnabled="False"/>
+                    <CheckBox Content="Recoverable deletion (Recycle Bin — enforced)" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="True" IsEnabled="False"/>
                 </StackPanel>
             </Border>
 
@@ -1458,9 +1352,9 @@
                         <Button Content="🔄 Check for Updates" Style="{StaticResource TechButton}" 
                                 Padding="12,6" Margin="0,0,8,0"
                                 Command="{Binding CheckForUpdatesCommand}"/>
-                        <Button Content="⬇ Download Update" Style="{StaticResource TechButton}"
+                        <Button Content="⬇ Download Verified Update" Style="{StaticResource TechButton}"
                                 Padding="12,6" Background="#001a10" BorderBrush="#4ade80" Foreground="#4ade80"
-                                Command="{Binding OpenDownloadCommand}"
+                                Command="{Binding DownloadUpdateCommand}"
                                 Visibility="{Binding UpdateAvailable, Converter={StaticResource BoolToVisibility}}"/>
                     </StackPanel>
                 </StackPanel>
@@ -1475,7 +1369,7 @@
                         <Run Text="{Binding AppVersion, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Text="© 2026 Softcurse. All rights reserved." FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2"/>
-                    <TextBlock Text=".NET 8.0 • WPF • Windows" FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2,0,12"/>
+                    <TextBlock Text=".NET 10 LTS • WPF • Windows x64" FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2,0,12"/>
                     <Button Content="🔄 Reset All Settings to Defaults" Style="{StaticResource TechButton}"
                             Padding="12,6" Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"
                             Command="{Binding ResetSettingsCommand}"
