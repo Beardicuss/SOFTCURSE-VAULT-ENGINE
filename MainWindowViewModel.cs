@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -17,11 +18,10 @@ namespace SoftcurseVaultCleaner
     public class MainWindowViewModel : INotifyPropertyChanged
     {
         private readonly CleanerService _cleanerService;
+        private readonly SafeCleanupEngine _safetyEngine;
 
         // ── Services ────────────────────────────────────────────────────
         public AppSettings Settings => AppSettings.Instance;
-        public LicenseService License => LicenseService.Instance;
-
         // ── Update state ────────────────────────────────────────────────
         private string _updateStatus = "";
         private bool _updateAvailable;
@@ -39,38 +39,18 @@ namespace SoftcurseVaultCleaner
         }
         public UpdateService.UpdateInfo LatestUpdate => _latestUpdate;
 
-        // ── License UI state ────────────────────────────────────────────
-        private string _licenseKeyInput = "";
-        private string _licenseEmailInput = "";
-        private string _licenseMessage = "";
-
-        public string LicenseKeyInput
-        {
-            get => _licenseKeyInput;
-            set { if (_licenseKeyInput != value) { _licenseKeyInput = value; OnPropertyChanged(nameof(LicenseKeyInput)); } }
-        }
-        public string LicenseEmailInput
-        {
-            get => _licenseEmailInput;
-            set { if (_licenseEmailInput != value) { _licenseEmailInput = value; OnPropertyChanged(nameof(LicenseEmailInput)); } }
-        }
-        public string LicenseMessage
-        {
-            get => _licenseMessage;
-            set { if (_licenseMessage != value) { _licenseMessage = value; OnPropertyChanged(nameof(LicenseMessage)); } }
-        }
         private bool _isCleaning;
         private int _progress;
         private string _status;
 
         // Checkbox properties for cleanup options
-        private bool _cleanTempFiles = true;
-        private bool _cleanCache = true;
-        private bool _cleanLogs = true;
+        private bool _cleanTempFiles = false;
+        private bool _cleanCache = false;
+        private bool _cleanLogs = false;
         private bool _cleanRecycleBin = false;
-        private bool _cleanPrefetch = true;
+        private bool _cleanPrefetch = false;
         private bool _deepScanMode = false;
-        private bool _useRecycleBin = false;
+        private bool _useRecycleBin = true;
         
         // Advanced cleanup properties
         private bool _cleanDevTools = false;
@@ -103,8 +83,10 @@ namespace SoftcurseVaultCleaner
         public MainWindowViewModel()
         {
             _cleanerService = new CleanerService();
+            _safetyEngine = new SafeCleanupEngine();
             _status = "STANDBY";
             _customFolders = new ObservableCollection<string>();
+            Settings.ApplyPhase1SafetyMigration();
             DiskAnalyzer = new DiskAnalyzerViewModel();
             AutoTune = new AutoTuneViewModel();
             // Wire "Send to Vault" callback: adds paths into CustomFolders list
@@ -122,14 +104,8 @@ namespace SoftcurseVaultCleaner
             QuickScanCommand = new RelayCommand(QuickScan, () => !IsCleaning);
             RemoveFolderCommand = new RelayCommand(RemoveSelectedFolder, () => SelectedCustomFolder != null);
             CheckForUpdatesCommand = new RelayCommand(async () => await CheckForUpdatesAsync());
-            ActivateLicenseCommand = new RelayCommand(async () => await ActivateLicenseAsync());
-            DeactivateLicenseCommand = new RelayCommand(() => { License.Deactivate(); LicenseMessage = "License deactivated."; });
             ResetSettingsCommand = new RelayCommand(() => Settings.Reset());
-            OpenDownloadCommand = new RelayCommand(() =>
-            {
-                if (_latestUpdate?.DownloadUrl != null)
-                    Process.Start(new ProcessStartInfo(_latestUpdate.DownloadUrl) { UseShellExecute = true });
-            });
+            DownloadUpdateCommand = new RelayCommand(async () => await DownloadVerifiedUpdateAsync());
 
             // Load cleanup defaults from saved settings
             LoadSettingsDefaults();
@@ -170,15 +146,11 @@ namespace SoftcurseVaultCleaner
 
         private async void AutoCleanTick(object sender, EventArgs e)
         {
-            if (!AutoTune.EnableAutoClean || IsCleaning) return;
-            if ((DateTime.Now - _lastAutoCleanTime).TotalHours >= 4)
-            {
-                if (System.Windows.Application.Current.MainWindow != null && System.Windows.Application.Current.MainWindow.Visibility == System.Windows.Visibility.Hidden)
-                {
-                    _lastAutoCleanTime = DateTime.Now;
-                    await System.Threading.Tasks.Task.Run(() => StartCleaning());
-                }
-            }
+            // Phase 1 safety: unattended deletion stays disabled until automatic
+            // cleanup has its own narrowly allowlisted, previewable operation set.
+            if (AutoTune.EnableAutoClean)
+                AddLogMessage("[SAFETY] Auto-clean is paused during the Phase 1 safety migration.");
+            await Task.CompletedTask;
         }
 
         public bool IsCleaning
@@ -345,10 +317,8 @@ namespace SoftcurseVaultCleaner
         public ICommand QuickScanCommand { get; }
         public ICommand RemoveFolderCommand { get; }
         public ICommand CheckForUpdatesCommand { get; }
-        public ICommand ActivateLicenseCommand { get; }
-        public ICommand DeactivateLicenseCommand { get; }
         public ICommand ResetSettingsCommand { get; }
-        public ICommand OpenDownloadCommand { get; }
+        public ICommand DownloadUpdateCommand { get; }
 
         /// <summary>
         /// Adds a folder path to the custom folders list (called from code-behind after folder dialog).
@@ -357,6 +327,20 @@ namespace SoftcurseVaultCleaner
         {
             if (!string.IsNullOrWhiteSpace(folderPath) && !CustomFolders.Contains(folderPath))
             {
+                var target = new CleanupTarget(
+                    $"custom:{folderPath}", "Custom folder", folderPath,
+                    "User-selected cleanup folder", CleanupTargetType.DirectoryContents,
+                    CleanupTargetOrigin.UserSelected);
+                var preview = _safetyEngine.Preview(target);
+                if (!preview.IsAllowed)
+                {
+                    System.Windows.MessageBox.Show(
+                        $"This folder was blocked by the cleanup safety policy:\n\n{preview.CanonicalPath}\n\n{preview.ValidationMessage}",
+                        "Unsafe Cleanup Target",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
                 CustomFolders.Add(folderPath);
             }
         }
@@ -383,7 +367,8 @@ namespace SoftcurseVaultCleaner
                 CleanRecycleBin = CleanRecycleBin,
                 CleanPrefetch = CleanPrefetch,
                 DeepScanMode = DeepScanMode,
-                UseRecycleBin = UseRecycleBin,
+                // Phase 1 safety invariant: filesystem deletion is recoverable only.
+                UseRecycleBin = true,
                 CleanDevTools = CleanDevTools,
                 CleanGaming = CleanGaming,
                 CleanSystemDumps = CleanSystemDumps,
@@ -395,7 +380,37 @@ namespace SoftcurseVaultCleaner
 
         private async void StartCleaning()
         {
+            var config = BuildConfig();
             IsCleaning = true;
+            Status = "BUILDING CLEANUP PREVIEW";
+
+            CleanupPlan plan;
+            IReadOnlyList<CleanupPreviewItem> preview;
+            try
+            {
+                var prepared = await Task.Run(() =>
+                {
+                    CleanupPlan builtPlan = _cleanerService.CreateCleanupPlan(config);
+                    return (Plan: builtPlan, Preview: _safetyEngine.Preview(builtPlan));
+                });
+                plan = prepared.Plan;
+                preview = prepared.Preview;
+            }
+            catch (Exception ex)
+            {
+                AddLogMessage($"[SAFETY] Could not build cleanup preview: {ex.Message}");
+                Status = "CLEANUP PREVIEW FAILED";
+                IsCleaning = false;
+                return;
+            }
+
+            if (!ConfirmCleanup(config, preview))
+            {
+                Status = "CLEANUP CANCELLED BEFORE EXECUTION";
+                IsCleaning = false;
+                return;
+            }
+
             Status = "INITIATING CLEANUP SEQUENCE";
             Progress = 0;
 
@@ -407,8 +422,7 @@ namespace SoftcurseVaultCleaner
 
             AddLogMessage("=== CLEANUP PROTOCOL INITIATED ===");
 
-            var config = BuildConfig();
-            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, SetStatus, AddLogMessage, config);
+            await _cleanerService.ExecuteCleanupAsync(UpdateProgress, SetStatus, AddLogMessage, config, plan);
 
             _cleanupStopwatch.Stop();
             _cleanupTimer.Stop();
@@ -426,6 +440,62 @@ namespace SoftcurseVaultCleaner
 
             IsCleaning = false;
             Status = "CLEANUP PROTOCOL COMPLETE";
+        }
+
+        private bool ConfirmCleanup(
+            CleanupConfig config,
+            IReadOnlyList<CleanupPreviewItem> preview)
+        {
+            var operations = new System.Collections.Generic.List<string>();
+            if (config.CleanRecycleBin) operations.Add("Empty Recycle Bin (not recoverable)");
+            if (config.CleanDNS) operations.Add("Command: flush the current DNS resolver cache");
+            if (config.CleanExtreme) operations.Add("Explorer privacy data: recent items and icon cache (recoverable)");
+            if (config.DeepScanMode)
+                operations.Add("Elevated helper: supported DISM component cleanup without ResetBase (UAC required)");
+
+            var blockedCustom = preview.Where(item => !item.IsAllowed &&
+                item.Target.Origin == CleanupTargetOrigin.UserSelected).ToList();
+            if (blockedCustom.Count > 0)
+            {
+                System.Windows.MessageBox.Show(
+                    "Cleanup cannot start because custom targets were blocked:\n\n" +
+                    string.Join("\n", blockedCustom.Select(item => $"• {item.CanonicalPath}: {item.ValidationMessage}")),
+                    "Cleanup Blocked",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return false;
+            }
+
+            var allowedFiles = preview.Where(item => item.IsAllowed).ToList();
+            var blockedFiles = preview.Where(item => !item.IsAllowed).ToList();
+            if (operations.Count == 0 && allowedFiles.Count == 0 && blockedFiles.Count == 0)
+            {
+                Status = "No cleanup operations selected.";
+                return false;
+            }
+
+            long estimatedBytes = allowedFiles.Sum(item => item.EstimatedBytes);
+            string message = $"FILESYSTEM PLAN: {allowedFiles.Count} allowed target(s), approximately {SizeFormatter.Format(estimatedBytes)}\n\n" +
+                             string.Join("\n", allowedFiles.Take(20).Select(item =>
+                                 $"• [{item.Target.Risk}] {item.Target.DisplayName}\n  {item.CanonicalPath}")) +
+                             (allowedFiles.Count > 20 ? $"\n• … and {allowedFiles.Count - 20} more target(s)" : "");
+
+            if (blockedFiles.Count > 0)
+                message += $"\n\nBLOCKED BY SAFETY POLICY: {blockedFiles.Count}\n" +
+                           string.Join("\n", blockedFiles.Take(8).Select(item =>
+                               $"• {item.Target.DisplayName}: {item.ValidationMessage}"));
+
+            if (operations.Count > 0)
+                message += "\n\nNON-FILESYSTEM OPERATIONS:\n" +
+                           string.Join("\n", operations.Select(operation => $"• {operation}"));
+
+            message += "\n\nAllowed filesystem targets are forced through the Recycle Bin. " +
+                       "Commands and settings explicitly marked not recoverable are outside that protection.\n\nContinue?";
+            return System.Windows.MessageBox.Show(
+                message,
+                "Cleanup Preview",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
         }
 
         private void AbortCleaning()
@@ -548,17 +618,18 @@ namespace SoftcurseVaultCleaner
         }
 
         // ═══════════════════════════════════════════════════════════════
-        //  UPDATE & LICENSE
+        //  SECURE UPDATE CHANNEL
         // ═══════════════════════════════════════════════════════════════
 
         private async Task CheckForUpdatesAsync()
         {
+            UpdateAvailable = false;
             UpdateStatus = "Checking for updates…";
             var result = await UpdateService.CheckForUpdateAsync();
             _latestUpdate = result;
             OnPropertyChanged(nameof(LatestUpdate));
 
-            if (result.Error != null)
+            if (!string.IsNullOrWhiteSpace(result.Error))
             {
                 UpdateStatus = result.Error;
             }
@@ -574,13 +645,32 @@ namespace SoftcurseVaultCleaner
             }
         }
 
-        private async Task ActivateLicenseAsync()
+        private async Task DownloadVerifiedUpdateAsync()
         {
-            LicenseMessage = "Validating…";
-            var (success, message) = await License.ActivateAsync(LicenseKeyInput, LicenseEmailInput);
-            LicenseMessage = message;
-            if (success)
-                AddLogMessage("[LICENSE] Pro license activated successfully.");
+            if (_latestUpdate == null || !_latestUpdate.IsAvailable)
+                return;
+
+            UpdateStatus = "Downloading and verifying signed update…";
+            var progress = new Progress<int>(percent =>
+                UpdateStatus = $"Downloading and verifying signed update… {percent}%");
+            UpdateService.DownloadResult result = await UpdateService.DownloadAndVerifyAsync(
+                _latestUpdate, progress);
+            if (!result.Succeeded)
+            {
+                UpdateStatus = result.Error;
+                AddLogMessage($"[UPDATE] {result.Error}");
+                return;
+            }
+
+            UpdateStatus = "Verified installer staged. The current installation remains unchanged.";
+            var choice = System.Windows.MessageBox.Show(
+                "The update passed signed metadata, SHA-256, and Authenticode verification.\n\n" +
+                "Launch the installer now? The current installation is retained until the installer completes.",
+                "Verified Update Ready",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Information);
+            if (choice == System.Windows.MessageBoxResult.Yes)
+                Process.Start(new ProcessStartInfo(result.InstallerPath) { UseShellExecute = true });
         }
 
         private void LoadSettingsDefaults()
@@ -590,7 +680,7 @@ namespace SoftcurseVaultCleaner
             CleanLogs = Settings.DefaultCleanLogs;
             CleanRecycleBin = Settings.DefaultCleanRecycleBin;
             CleanPrefetch = Settings.DefaultCleanPrefetch;
-            UseRecycleBin = Settings.DefaultUseRecycleBin;
+            UseRecycleBin = true;
             
             CleanDevTools = Settings.DefaultCleanDevTools;
             CleanGaming = Settings.DefaultCleanGaming;

@@ -5,6 +5,10 @@ VisualStudioVersion = 17.14.36623.8
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Win11 Auto-Clean", "Win11 Auto-Clean.csproj", "{3C3EC974-3126-4D31-A15F-579D4DD85779}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafeCleanupEngine.Tests", "SafeCleanupEngine.Tests\SafeCleanupEngine.Tests.csproj", "{8A73A88D-86DF-49D4-8B5D-57F348F492CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PrivilegedMaintenanceHelper", "PrivilegedMaintenanceHelper\PrivilegedMaintenanceHelper.csproj", "{C571C04D-290A-48DB-9F7B-81D1EA4CBF5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{3C3EC974-3126-4D31-A15F-579D4DD85779}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3C3EC974-3126-4D31-A15F-579D4DD85779}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3C3EC974-3126-4D31-A15F-579D4DD85779}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A73A88D-86DF-49D4-8B5D-57F348F492CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A73A88D-86DF-49D4-8B5D-57F348F492CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A73A88D-86DF-49D4-8B5D-57F348F492CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A73A88D-86DF-49D4-8B5D-57F348F492CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C571C04D-290A-48DB-9F7B-81D1EA4CBF5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C571C04D-290A-48DB-9F7B-81D1EA4CBF5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C571C04D-290A-48DB-9F7B-81D1EA4CBF5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C571C04D-290A-48DB-9F7B-81D1EA4CBF5D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

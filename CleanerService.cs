@@ -1,4 +1,3 @@
-using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,13 +14,13 @@ namespace SoftcurseVaultCleaner
     /// </summary>
     public class CleanupConfig
     {
-        public bool CleanTempFiles { get; set; } = true;
-        public bool CleanCache { get; set; } = true;
-        public bool CleanLogs { get; set; } = true;
+        public bool CleanTempFiles { get; set; } = false;
+        public bool CleanCache { get; set; } = false;
+        public bool CleanLogs { get; set; } = false;
         public bool CleanRecycleBin { get; set; } = false;
-        public bool CleanPrefetch { get; set; } = true;
+        public bool CleanPrefetch { get; set; } = false;
         public bool DeepScanMode { get; set; } = false;
-        public bool UseRecycleBin { get; set; } = false;
+        public bool UseRecycleBin { get; set; } = true;
         
         // New advanced categories
         public bool CleanDevTools { get; set; } = false;
@@ -40,6 +39,9 @@ namespace SoftcurseVaultCleaner
     /// </summary>
     public class CleanerService
     {
+        private readonly SafeCleanupEngine _cleanupEngine = new SafeCleanupEngine();
+        private readonly PrivilegedMaintenanceService _privilegedMaintenance = new PrivilegedMaintenanceService();
+        private CleanupPlan _approvedPlan;
         private volatile bool _abortRequested = false;
         private long _totalSpaceFreed = 0;
         private Action<int> _progressCallback;
@@ -47,10 +49,6 @@ namespace SoftcurseVaultCleaner
         private Action<string> _logCallback;
 
         public long TotalSpaceFreed => _totalSpaceFreed;
-
-        // Configuration fields
-        private int requiredFreeGB = 20;
-        private int pagefileMarginGB = 5;
 
         // DLL imports
         [System.Runtime.InteropServices.DllImport("Shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
@@ -64,13 +62,124 @@ namespace SoftcurseVaultCleaner
             _abortRequested = true;
         }
 
-        public async Task ExecuteCleanupAsync(Action<int> progressCallback, Action<string> statusCallback, Action<string> logCallback, CleanupConfig config, CancellationToken token = default)
+        public CleanupPlan CreateCleanupPlan(CleanupConfig config)
+        {
+            var targets = new List<CleanupTarget>();
+            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            void AddDirectory(string id, string name, string path, string reason, string category,
+                CleanupRisk risk = CleanupRisk.Moderate,
+                CleanupPrivilege privilege = CleanupPrivilege.StandardUser,
+                CleanupTargetOrigin origin = CleanupTargetOrigin.BuiltIn)
+            {
+                if (Directory.Exists(path))
+                    targets.Add(new CleanupTarget(id, name, path, reason,
+                        CleanupTargetType.DirectoryContents, origin, category, risk, privilege));
+            }
+
+            void AddFile(string id, string name, string path, string reason, string category,
+                CleanupRisk risk = CleanupRisk.Moderate,
+                CleanupPrivilege privilege = CleanupPrivilege.StandardUser)
+            {
+                if (File.Exists(path))
+                    targets.Add(new CleanupTarget(id, name, path, reason,
+                        CleanupTargetType.File, CleanupTargetOrigin.BuiltIn, category, risk, privilege));
+            }
+
+            if (config.CleanTempFiles)
+            {
+                AddDirectory("temp:user", "User TEMP", Path.GetTempPath(), "Per-user temporary files", "Temporary", CleanupRisk.Low);
+            }
+
+            if (config.CleanCache)
+            {
+                string pip = Path.Combine(local, "pip", "Cache");
+                if (!Directory.Exists(pip)) pip = Path.Combine(roaming, "pip", "Cache");
+                AddDirectory("cache:pip", "Python pip cache", pip, "Package download cache", "Developer", CleanupRisk.Low);
+
+                string explorer = Path.Combine(local, "Microsoft", "Windows", "Explorer");
+                if (Directory.Exists(explorer))
+                    foreach (string pattern in new[] { "thumbcache_*.db", "iconcache_*.db" })
+                        foreach (string file in Directory.EnumerateFiles(explorer, pattern))
+                            AddFile($"cache:thumbnail:{file}", "Thumbnail cache", file, "Explorer generated cache", "System", CleanupRisk.Low);
+
+                AddDirectory("cache:store", "UWP TempState", Path.Combine(local, "Packages", "TempState"), "UWP temporary state", "Applications");
+                AddDirectory("cache:unreal", "Unreal Engine data", Path.Combine(local, "UnrealEngine"), "Broad Unreal Engine data root", "Developer", CleanupRisk.High);
+                AddDirectory("cache:android", "Android system images", Path.Combine(local, "Android", "Sdk", "system-images"), "Installed Android emulator images", "Developer", CleanupRisk.High);
+
+                foreach (string path in new[]
+                {
+                    Path.Combine(local, "NVIDIA", "DXCache"),
+                    Path.Combine(local, "AMD", "DXCache"),
+                    Path.Combine(local, "Intel", "GfxCache")
+                }) AddDirectory($"cache:driver:{path}", "Driver cache", path, "Graphics driver cache", "Drivers");
+
+                foreach (string path in new[]
+                {
+                    Path.Combine(local, "Google", "Chrome", "User Data", "Default", "Cache"),
+                    Path.Combine(local, "Microsoft", "Edge", "User Data", "Default", "Cache"),
+                    Path.Combine(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache")
+                }) AddDirectory($"cache:browser:{path}", "Browser cache", path, "Browser-generated cache", "Browsers", CleanupRisk.Low);
+
+                string firefoxProfiles = Path.Combine(roaming, "Mozilla", "Firefox", "Profiles");
+                if (Directory.Exists(firefoxProfiles))
+                    foreach (string profileDirectory in Directory.EnumerateDirectories(firefoxProfiles))
+                        AddDirectory($"cache:firefox:{profileDirectory}", "Firefox cache2",
+                            Path.Combine(profileDirectory, "cache2"), "Firefox generated cache", "Browsers", CleanupRisk.Low);
+            }
+
+            if (config.CleanDevTools)
+                foreach (string path in new[]
+                {
+                    Path.Combine(roaming, "npm-cache"), Path.Combine(local, "Yarn", "Cache"),
+                    Path.Combine(profile, ".nuget", "packages"), Path.Combine(profile, ".gradle", "caches"),
+                    Path.Combine(profile, ".m2", "repository")
+                }) AddDirectory($"dev:{path}", "Developer cache", path, "Developer dependency/cache data", "Developer", CleanupRisk.Moderate);
+
+            if (config.CleanGaming)
+                foreach (string path in new[]
+                {
+                    Path.Combine(roaming, "discord", "Cache"), Path.Combine(roaming, "discord", "Code Cache"),
+                    Path.Combine(local, "EpicGamesLauncher", "Saved", "webcache"),
+                    Path.Combine(local, "Spotify", "Data"), Path.Combine(roaming, "Microsoft", "Teams", "Cache")
+                }) AddDirectory($"gaming:{path}", "Gaming/application data", path, "Application cache or download data", "Applications", CleanupRisk.High);
+
+            if (config.CleanSystemDumps)
+            {
+                foreach (string path in new[] { Path.Combine(local, "CrashDumps"), Path.Combine(local, "Microsoft", "Windows", "WER") })
+                    AddDirectory($"dump:{path}", "System dump directory", path, "Crash diagnostic data", "Diagnostics", CleanupRisk.Moderate);
+            }
+
+            if (config.CleanExtreme)
+            {
+                AddDirectory("extreme:recent", "Explorer recent files", Path.Combine(roaming, "Microsoft", "Windows", "Recent"), "Recent-item history", "Extreme", CleanupRisk.High);
+                AddFile("extreme:icon", "IconCache.db", Path.Combine(local, "IconCache.db"), "Explorer icon cache", "Extreme");
+            }
+
+            foreach (string path in config.CustomPaths ?? new List<string>())
+                AddDirectory($"custom:{path}", "Custom folder", Environment.ExpandEnvironmentVariables(path.Trim()),
+                    "User-selected cleanup folder", "Custom", CleanupRisk.High,
+                    CleanupPrivilege.StandardUser, CleanupTargetOrigin.UserSelected);
+
+            return CleanupPlan.Create($"cleanup:{Guid.NewGuid():N}", targets);
+        }
+
+        public async Task ExecuteCleanupAsync(
+            Action<int> progressCallback,
+            Action<string> statusCallback,
+            Action<string> logCallback,
+            CleanupConfig config,
+            CleanupPlan approvedPlan,
+            CancellationToken token = default)
         {
             _abortRequested = false;
             _totalSpaceFreed = 0;
             _progressCallback = progressCallback;
             _statusCallback = statusCallback;
             _logCallback = logCallback;
+            _approvedPlan = approvedPlan ?? throw new ArgumentNullException(nameof(approvedPlan));
 
             await Task.Run(async () => await ExecuteCleanupProtocol(config, token), token);
         }
@@ -80,16 +189,6 @@ namespace SoftcurseVaultCleaner
             bool ShouldStop() => _abortRequested || token.IsCancellationRequested;
             LogStatus("=== INITIATING CLEANUP PROTOCOL ===");
             UpdateStatus("INITIATING CLEANUP SEQUENCE");
-
-            var selectedDrive = SelectTargetDrive();
-            if (selectedDrive != null)
-            {
-                LogStatus($"SELECTED TARGET DRIVE: {selectedDrive.DriveLetter}: (Free: {selectedDrive.FreeGB:F2} GB)");
-            }
-            else
-            {
-                LogStatus("WARNING: No suitable target drive found. Pagefile/restore relocation skipped.");
-            }
 
             // Build task list based on config — uses Func<Task> for async support
             var tasks = new List<(string Name, Func<Task> Task)>();
@@ -104,21 +203,11 @@ namespace SoftcurseVaultCleaner
             {
                 tasks.Add(("PYTHON PIP Cache Purge", () => { CleanPipCache(); return Task.CompletedTask; }));
                 tasks.Add(("Thumbnail Cache Clean", () => { CleanThumbnailCache(); return Task.CompletedTask; }));
-                tasks.Add(("Windows Update Cache Flush", CleanWindowsUpdateCacheAsync));
                 tasks.Add(("UWP App Cache Clean", () => { CleanMicrosoftStoreCache(); return Task.CompletedTask; }));
                 tasks.Add(("Driver Cache Purge", () => { CleanDriverCachesTask(); return Task.CompletedTask; }));
                 tasks.Add(("Unreal Engine Purge", () => { CleanUnrealEngineCache(); return Task.CompletedTask; }));
                 tasks.Add(("Android SDK Clean", () => { CleanAndroidSDK(); return Task.CompletedTask; }));
                 tasks.Add(("Browser Data Wipe", () => { CleanBrowserCaches(); return Task.CompletedTask; }));
-            }
-
-            if (config.CleanLogs)
-                tasks.Add(("Event Log Scrub", () => { CleanEventLogs(); return Task.CompletedTask; }));
-
-            if (config.CleanPrefetch)
-            {
-                tasks.Add(("Font Cache Rebuild", RebuildFontCacheAsync));
-                tasks.Add(("Prefetch Flush", () => { CleanPrefetchFiles(); return Task.CompletedTask; }));
             }
 
             if (config.CleanDevTools)
@@ -131,16 +220,13 @@ namespace SoftcurseVaultCleaner
                 tasks.Add(("System Dumps Eradication", () => { CleanSystemDumps(); return Task.CompletedTask; }));
 
             if (config.CleanDNS)
-                tasks.Add(("DNS & Net Cache Flush", FlushDNSCacheAsync));
+                tasks.Add(("DNS Cache Flush", FlushDNSCacheAsync));
 
             if (config.CleanExtreme)
-                tasks.Add(("Extreme System Wipe", CleanExtremeTasksAsync));
+                tasks.Add(("Explorer Privacy Cleanup", CleanExtremeTasksAsync));
 
             if (config.DeepScanMode)
-            {
-                tasks.Add(("DISM Cleanup", RunDISMCleanupAsync));
-                tasks.Add(("Orphaned Installer Removal", () => { RemoveOrphanedInstallersTask(); return Task.CompletedTask; }));
-            }
+                tasks.Add(("Supported Windows Component Cleanup", RunDISMCleanupAsync));
 
             // Custom paths from user
             if (config.CustomPaths != null && config.CustomPaths.Count > 0)
@@ -159,13 +245,6 @@ namespace SoftcurseVaultCleaner
                     : 50;
 
                 await ExecuteTaskAsync(tasks[i].Name, tasks[i].Task, progress);
-            }
-
-            // Pagefile and System Restore (only with deep scan + confirmation already in UI)
-            if (!ShouldStop() && selectedDrive != null && config.DeepScanMode)
-            {
-                await ExecuteTaskAsync("Pagefile Configuration", () => { ConfigurePagefile(selectedDrive.DriveLetter); return Task.CompletedTask; }, 98);
-                await ExecuteTaskAsync("System Restore Relocation", () => MoveSystemRestoreAsync(selectedDrive.DriveLetter), 99);
             }
 
             if (!ShouldStop())
@@ -221,7 +300,6 @@ namespace SoftcurseVaultCleaner
         private void CleanTempFolders()
         {
             CleanDirectory(Path.GetTempPath(), "User TEMP");
-            CleanDirectory(@"C:\Windows\Temp", "System TEMP");
         }
 
         private void CleanPipCache()
@@ -251,38 +329,6 @@ namespace SoftcurseVaultCleaner
             catch (Exception ex) { LogStatus($"Microsoft Store cache failed: {ex.Message}"); }
         }
 
-        private async Task CleanWindowsUpdateCacheAsync()
-        {
-            try
-            {
-                await StopServiceAsync("wuauserv");
-                await StopServiceAsync("bits");
-                await StopServiceAsync("dosvc"); // Delivery Optimization
-                
-                CleanDirectory(@"C:\Windows\SoftwareDistribution\Download", "Windows Update Download Cache");
-                CleanDirectory(@"C:\Windows\SoftwareDistribution\DataStore", "Windows Update DataStore");
-                CleanDirectory(@"C:\Windows\ServiceProfiles\LocalService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache", "Delivery Optimization Cache");
-                
-                // Try to remove upgrade folders if they exist
-                if (Directory.Exists(@"C:\$WINDOWS.~BT"))
-                {
-                    CleanDirectory(@"C:\$WINDOWS.~BT", "Windows Upgrade Artifacts (~BT)");
-                    try { Directory.Delete(@"C:\$WINDOWS.~BT", true); } catch { }
-                }
-                if (Directory.Exists(@"C:\Windows.old"))
-                {
-                    LogStatus("Found Windows.old directory. Warning: system rollback will no longer be possible once deleted.");
-                    // Requires extensive permissions, sometimes taking ownership is needed, but we try standard deletion since we are now Admin
-                    CleanDirectory(@"C:\Windows.old", "Windows Old Backup");
-                }
-
-                await StartServiceAsync("dosvc");
-                await StartServiceAsync("bits");
-                await StartServiceAsync("wuauserv");
-            }
-            catch (Exception ex) { LogStatus($"Windows Update cache failed: {ex.Message}"); }
-        }
-
         private void CleanUnrealEngineCache()
         {
             string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnrealEngine");
@@ -293,56 +339,6 @@ namespace SoftcurseVaultCleaner
         {
             string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Android", "Sdk", "system-images");
             CleanDirectory(path, "Android SDK");
-        }
-
-        private void CleanEventLogs()
-        {
-            try
-            {
-                using (Process process = new Process())
-                {
-                    process.StartInfo.FileName = "wevtutil.exe";
-                    process.StartInfo.Arguments = "el";
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                    process.Start();
-
-                    string output = process.StandardOutput.ReadToEnd();
-                    process.WaitForExit(15000);
-
-                    foreach (string log in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        if (_abortRequested) break;
-
-                        try
-                        {
-                            using (Process clearProcess = new Process())
-                            {
-                                clearProcess.StartInfo.FileName = "wevtutil.exe";
-                                clearProcess.StartInfo.Arguments = $"cl \"{log}\"";
-                                clearProcess.StartInfo.UseShellExecute = false;
-                                clearProcess.StartInfo.RedirectStandardOutput = true;
-                                clearProcess.StartInfo.RedirectStandardError = true;
-                                clearProcess.StartInfo.CreateNoWindow = true;
-                                clearProcess.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                                clearProcess.Start();
-                                if (!clearProcess.WaitForExit(2000))
-                                {
-                                    try { clearProcess.Kill(); } catch { }
-                                }
-                            }
-                            Thread.Sleep(5);
-                        }
-                        catch (Exception ex)
-                        {
-                            LogStatus($"Failed to clear log {log}: {ex.Message}");
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { LogStatus($"Event logs failed: {ex.Message}"); }
         }
 
         private void CleanBrowserCaches()
@@ -375,34 +371,25 @@ namespace SoftcurseVaultCleaner
 
         private async Task RunDISMCleanupAsync()
         {
-            try
-            {
-                await RunCommandAsync("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup");
-                await RunCommandAsync("dism.exe", "/Online /Cleanup-Image /StartComponentCleanup /ResetBase");
-            }
-            catch (Exception ex) { LogStatus($"DISM failed: {ex.Message}"); }
+            PrivilegedMaintenanceResult result = await _privilegedMaintenance.RunComponentCleanupAsync();
+            LogStatus(result.Message);
+            if (!result.Succeeded && !result.Cancelled)
+                throw new InvalidOperationException(result.Message);
         }
 
         private void CleanDriverCachesTask()
         {
             var paths = new[]
             {
-                @"C:\ProgramData\NVIDIA Corporation\Downloader",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NVIDIA", "DXCache"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AMD", "DXCache"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Intel", "GfxCache"),
-                @"C:\ProgramData\NVIDIA Corporation\NV_Cache"
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Intel", "GfxCache")
             };
 
             foreach (string path in paths)
             {
                 CleanDirectory(path, $"Driver cache: {Path.GetFileName(path)}");
             }
-        }
-
-        private void RemoveOrphanedInstallersTask()
-        {
-            RemoveOrphanedInstallers(@"C:\Windows\Installer");
         }
 
         private void CleanThumbnailCache()
@@ -423,55 +410,17 @@ namespace SoftcurseVaultCleaner
                             if (_abortRequested) return;
                             try
                             {
-                                long sz = new FileInfo(file).Length;
-                                File.Delete(file);
-                                deleted++;
-                                bytesFreed += sz;
+                                long freed = DeleteFileSafely(file, "Thumbnail cache file");
+                                if (freed > 0) { deleted++; bytesFreed += freed; }
                             }
                             catch { }
                         }
                     }
-                    Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
                     double freedMB = bytesFreed / (1024.0 * 1024.0);
                     LogStatus($"Thumbnail cache: deleted {deleted} files ({freedMB:N1} MB)");
                 }
             }
             catch (Exception ex) { LogStatus($"Thumbnail cache cleanup failed: {ex.Message}"); }
-        }
-
-        private async Task RebuildFontCacheAsync()
-        {
-            LogStatus("Rebuilding font cache...");
-            try
-            {
-                await StopServiceAsync("FontCache");
-                await Task.Delay(2000);
-
-                string fontCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "FontCache");
-                if (Directory.Exists(fontCache))
-                {
-                    CleanDirectory(fontCache, "Font Cache");
-                }
-
-                await StartServiceAsync("FontCache");
-                LogStatus("Font cache rebuilt successfully using service");
-            }
-            catch (Exception ex)
-            {
-                LogStatus($"Font cache rebuild failed: {ex.Message}");
-                // Note: SFC removed — it's a full system scan, not a font cache tool
-                LogStatus("Font cache service unavailable. Cache will rebuild on next reboot.");
-            }
-        }
-
-        private void CleanPrefetchFiles()
-        {
-            LogStatus("Cleaning Prefetch files...");
-            try
-            {
-                CleanDirectory(@"C:\Windows\Prefetch", "Windows Prefetch");
-            }
-            catch (Exception ex) { LogStatus($"Prefetch cleanup failed: {ex.Message}"); }
         }
 
         private void CleanDevToolsCaches()
@@ -499,8 +448,7 @@ namespace SoftcurseVaultCleaner
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "discord", "Code Cache"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "EpicGamesLauncher", "Saved", "webcache"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Spotify", "Data"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Teams", "Cache"),
-                @"C:\Program Files (x86)\Steam\steamapps\downloading"
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Teams", "Cache")
             };
 
             foreach (string path in paths)
@@ -514,29 +462,12 @@ namespace SoftcurseVaultCleaner
             var paths = new[]
             {
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrashDumps"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "WER"),
-                @"C:\Windows\Minidump"
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "WER")
             };
 
             foreach (string path in paths)
             {
                 CleanDirectory(path, $"System Dump: {Path.GetFileName(path)}");
-            }
-            
-            string memDump = @"C:\Windows\MEMORY.DMP";
-            if (File.Exists(memDump))
-            {
-                try
-                {
-                    long sz = new FileInfo(memDump).Length;
-                    File.Delete(memDump);
-                    Interlocked.Add(ref _totalSpaceFreed, sz);
-                    LogStatus($"CLEANED: System Dump: MEMORY.DMP ({sz / (1024.0 * 1024.0):N1} MB)");
-                }
-                catch (Exception ex)
-                {
-                    LogStatus($"FAILED: System Dump: MEMORY.DMP - {ex.Message}");
-                }
             }
         }
 
@@ -545,8 +476,7 @@ namespace SoftcurseVaultCleaner
             try
             {
                 await RunCommandAsync("ipconfig.exe", "/flushdns");
-                await RunCommandAsync("netsh.exe", "interface ip delete arpcache");
-                LogStatus("DNS and ARP caches flushed successfully");
+                LogStatus("DNS resolver cache flushed successfully");
             }
             catch (Exception ex) { LogStatus($"DNS flush failed: {ex.Message}"); }
         }
@@ -560,7 +490,7 @@ namespace SoftcurseVaultCleaner
                 string expandedPath = Environment.ExpandEnvironmentVariables(path.Trim());
                 if (Directory.Exists(expandedPath))
                 {
-                    CleanDirectory(expandedPath, $"Custom: {expandedPath}");
+                    CleanDirectory(expandedPath, $"Custom: {expandedPath}", CleanupTargetOrigin.UserSelected);
                 }
                 else
                 {
@@ -572,10 +502,13 @@ namespace SoftcurseVaultCleaner
         // Helper methods
 
         /// <summary>
-        /// Cleans a directory by deleting all files and subdirectories.
-        /// Tracks actual bytes freed by measuring file sizes before deletion.
+        /// Routes directory cleanup through the centralized Phase 1 safety boundary.
+        /// Contents are moved to the Recycle Bin and protected/reparse targets fail closed.
         /// </summary>
-        private void CleanDirectory(string path, string description)
+        private void CleanDirectory(
+            string path,
+            string description,
+            CleanupTargetOrigin origin = CleanupTargetOrigin.BuiltIn)
         {
             if (!Directory.Exists(path))
             {
@@ -585,53 +518,64 @@ namespace SoftcurseVaultCleaner
 
             if (_abortRequested) return;
 
-            try
+            var target = new CleanupTarget(
+                $"cleaner:{description}", description, path, description,
+                CleanupTargetType.DirectoryContents, origin);
+            if (!IsInApprovedPlan(target))
             {
-                int filesDeleted = 0;
-                int dirsDeleted = 0;
-                long bytesFreed = 0;
-
-                // Use EnumerateFiles to reduce memory usage
-                foreach (string file in Directory.EnumerateFiles(path))
-                {
-                    if (_abortRequested) return;
-
-                    try
-                    {
-                        long fileSize = new FileInfo(file).Length;
-                        File.Delete(file);
-                        filesDeleted++;
-                        bytesFreed += fileSize;
-                    }
-                    catch { }
-
-                    if (filesDeleted % 100 == 0) Thread.Sleep(1);
-                }
-
-                foreach (string dir in Directory.EnumerateDirectories(path))
-                {
-                    if (_abortRequested) return;
-
-                    try
-                    {
-                        long dirSize = CalculateDirectorySize(dir);
-                        Directory.Delete(dir, true);
-                        dirsDeleted++;
-                        bytesFreed += dirSize;
-                    }
-                    catch { }
-
-                    if (dirsDeleted % 10 == 0) Thread.Sleep(1);
-                }
-
-                Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
-                double freedMB = bytesFreed / (1024.0 * 1024.0);
-                LogStatus($"CLEANED: {description} ({filesDeleted} files, {dirsDeleted} folders, {freedMB:N1} MB)");
+                LogStatus($"BLOCKED: {description} was not present in the confirmed cleanup plan.");
+                return;
             }
-            catch (Exception ex)
+            var result = _cleanupEngine.ExecuteAsync(new[] { target }).GetAwaiter().GetResult();
+            var item = result.Items.FirstOrDefault();
+            if (item?.Succeeded == true)
             {
-                LogStatus($"FAILED: {description} - {ex.Message}");
+                Interlocked.Add(ref _totalSpaceFreed, item.BytesFreed);
+                LogStatus($"CLEANED: {description} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB moved to Recycle Bin)");
             }
+            else
+            {
+                LogStatus($"BLOCKED/FAILED: {description} - {item?.Message ?? "No result returned"}");
+            }
+        }
+
+        private long DeleteFileSafely(
+            string path,
+            string description,
+            CleanupTargetOrigin origin = CleanupTargetOrigin.BuiltIn)
+        {
+            var target = new CleanupTarget(
+                $"cleaner-file:{description}:{path}", description, path, description,
+                CleanupTargetType.File, origin);
+            if (!IsInApprovedPlan(target))
+            {
+                LogStatus($"BLOCKED: {description} was not present in the confirmed cleanup plan.");
+                return 0;
+            }
+            var result = _cleanupEngine.ExecuteAsync(new[] { target }).GetAwaiter().GetResult();
+            var item = result.Items.FirstOrDefault();
+            if (item?.Succeeded == true)
+            {
+                Interlocked.Add(ref _totalSpaceFreed, item.BytesFreed);
+                return item.BytesFreed;
+            }
+
+            LogStatus($"BLOCKED/FAILED: {description} - {item?.Message ?? "No result returned"}");
+            return 0;
+        }
+
+        private bool IsInApprovedPlan(CleanupTarget target)
+        {
+            if (_approvedPlan == null) return false;
+            string canonical = Path.TrimEndingDirectorySeparator(Path.GetFullPath(
+                Environment.ExpandEnvironmentVariables(target.Path)));
+            return _approvedPlan.Targets.Any(approved =>
+                approved.Type == target.Type &&
+                string.Equals(
+                    Path.TrimEndingDirectorySeparator(Path.GetFullPath(
+                        Environment.ExpandEnvironmentVariables(approved.Path))),
+                    canonical,
+                    StringComparison.OrdinalIgnoreCase));
         }
 
         private long CalculateDirectorySize(string path)
@@ -669,136 +613,27 @@ namespace SoftcurseVaultCleaner
             return size;
         }
 
-        private async Task CleanExtremeTasksAsync()
+        private Task CleanExtremeTasksAsync()
         {
-            LogStatus("EXTREME MODE INITIALIZED...");
-
-            // 1. Docker Prune
-            try
-            {
-                await RunCommandAsync("docker.exe", "system prune -a -f --volumes");
-                LogStatus("Docker Prune Complete");
-            }
-            catch { }
-
-            // 2. Windows Defender History
-            string defenderHistory = @"C:\ProgramData\Microsoft\Windows Defender\Scans\History\Service\DetectionHistory";
-            if (Directory.Exists(defenderHistory))
-            {
-                CleanDirectory(defenderHistory, "Defender Scan History");
-            }
-
-            // 3. Explorer Privacy
+            LogStatus("EXPLORER PRIVACY CLEANUP INITIALIZED...");
             string recentFiles = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Recent");
             if (Directory.Exists(recentFiles))
             {
                 CleanDirectory(recentFiles, "Explorer Recent Files");
             }
 
-            // 4. IconCache
             string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string iconCacheFile = Path.Combine(localAppData, "IconCache.db");
             if (File.Exists(iconCacheFile))
             {
                 try
                 {
-                    long sz = new FileInfo(iconCacheFile).Length;
-                    File.Delete(iconCacheFile);
-                    Interlocked.Add(ref _totalSpaceFreed, sz);
-                    LogStatus("IconCache.db wiped");
+                    long freed = DeleteFileSafely(iconCacheFile, "IconCache.db");
+                    if (freed > 0) LogStatus("IconCache.db moved to Recycle Bin");
                 }
                 catch { }
             }
-        }
-
-        private void ConfigurePagefile(string driveLetter)
-        {
-            try
-            {
-                string regPath = @"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
-                string pagefileValue = $"{driveLetter}:\\pagefile.sys 0 0";
-
-                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath, true))
-                {
-                    if (key != null)
-                    {
-                        key.SetValue("PagingFiles", new string[] { pagefileValue }, RegistryValueKind.MultiString);
-                        LogStatus($"PAGEFILE: Configured on {driveLetter}: - Reboot required");
-                    }
-                }
-
-                try
-                {
-                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(regPath, true))
-                    {
-                        key?.SetValue("AutomaticManagedPagefile", 0, RegistryValueKind.DWord);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogStatus($"PAGEFILE REGISTRY: {ex.Message}");
-                }
-            }
-            catch (Exception ex)
-            {
-                LogStatus($"PAGEFILE config failed: {ex.Message}");
-            }
-        }
-
-        private async Task MoveSystemRestoreAsync(string targetDrive)
-        {
-            try
-            {
-                await RunCommandAsync("vssadmin", $"delete shadows /for=C: /all /quiet");
-                string maxSize = "10GB";
-                await RunCommandAsync("vssadmin", $"Resize ShadowStorage /For=C: /On={targetDrive}: /MaxSize={maxSize}");
-                LogStatus($"SYSTEM RESTORE: Moved to {targetDrive}:");
-            }
-            catch (Exception ex) { LogStatus($"System Restore move failed: {ex.Message}"); }
-        }
-
-        private void RemoveOrphanedInstallers(string installerDir)
-        {
-            if (!Directory.Exists(installerDir))
-            {
-                LogStatus("ORPHANED INSTALLERS: Directory not found");
-                return;
-            }
-
-            int removedCount = 0;
-            long bytesFreed = 0;
-            try
-            {
-                var patterns = new[] { "*.msi", "*.msp" };
-                foreach (string pattern in patterns)
-                {
-                    foreach (string file in Directory.EnumerateFiles(installerDir, pattern))
-                    {
-                        if (_abortRequested) return;
-                        try
-                        {
-                            FileInfo fi = new FileInfo(file);
-                            if (fi.CreationTime < DateTime.Now.AddMonths(-6))
-                            {
-                                long size = fi.Length;
-                                File.Delete(file);
-                                removedCount++;
-                                bytesFreed += size;
-                                LogStatus($"REMOVED ORPHANED: {Path.GetFileName(file)}");
-                            }
-                        }
-                        catch { }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogStatus($"ORPHANED CLEANUP ERROR: {ex.Message}");
-            }
-
-            Interlocked.Add(ref _totalSpaceFreed, bytesFreed);
-            double freedMB = bytesFreed / (1024.0 * 1024.0);
-            LogStatus($"ORPHANED INSTALLERS: Removed {removedCount} files ({freedMB:N1} MB)");
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -850,112 +685,6 @@ namespace SoftcurseVaultCleaner
             {
                 LogStatus($"COMMAND FAILED: {fileName} {arguments} - {ex.Message}");
             }
-        }
-
-        private async Task StopServiceAsync(string serviceName)
-        {
-            try
-            {
-                using (Process process = new Process())
-                {
-                    process.StartInfo.FileName = "net";
-                    process.StartInfo.Arguments = $"stop {serviceName}";
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.Start();
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    try { await process.WaitForExitAsync(cts.Token); }
-                    catch (OperationCanceledException)
-                    {
-                        try { process.Kill(); } catch { }
-                        LogStatus($"SERVICE STOP TIMEOUT: {serviceName}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogStatus($"SERVICE STOP FAILED: {serviceName} - {ex.Message}");
-            }
-        }
-
-        private async Task StartServiceAsync(string serviceName)
-        {
-            try
-            {
-                using (Process process = new Process())
-                {
-                    process.StartInfo.FileName = "net";
-                    process.StartInfo.Arguments = $"start {serviceName}";
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.CreateNoWindow = true;
-                    process.Start();
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    try { await process.WaitForExitAsync(cts.Token); }
-                    catch (OperationCanceledException)
-                    {
-                        try { process.Kill(); } catch { }
-                        LogStatus($"SERVICE START TIMEOUT: {serviceName}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogStatus($"SERVICE START FAILED: {serviceName} - {ex.Message}");
-            }
-        }
-
-        private class DriveInfoWrapper
-        {
-            public string DriveLetter { get; set; }
-            public double FreeGB { get; set; }
-            public double TotalGB { get; set; }
-        }
-
-        private DriveInfoWrapper SelectTargetDrive()
-        {
-            // Dynamically find non-system fixed drives
-            string systemDrive = Path.GetPathRoot(Environment.SystemDirectory)?.TrimEnd('\\') ?? "C:";
-            var candidates = DriveInfo.GetDrives()
-                .Where(d => d.IsReady && d.DriveType == DriveType.Fixed && !d.Name.StartsWith(systemDrive, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(d => d.AvailableFreeSpace)
-                .ToList();
-
-            // First pass: require enough free space for pagefile
-            foreach (var di in candidates)
-            {
-                double freeGB = ToGB(di.AvailableFreeSpace);
-                if (freeGB >= requiredFreeGB)
-                {
-                    return new DriveInfoWrapper
-                    {
-                        DriveLetter = di.Name.Substring(0, 1),
-                        FreeGB = freeGB,
-                        TotalGB = ToGB(di.TotalSize)
-                    };
-                }
-            }
-
-            // Second pass: lower threshold
-            foreach (var di in candidates)
-            {
-                double freeGB = ToGB(di.AvailableFreeSpace);
-                if (freeGB >= pagefileMarginGB)
-                {
-                    return new DriveInfoWrapper
-                    {
-                        DriveLetter = di.Name.Substring(0, 1),
-                        FreeGB = freeGB,
-                        TotalGB = ToGB(di.TotalSize)
-                    };
-                }
-            }
-
-            return null;
-        }
-
-        private double ToGB(long bytes)
-        {
-            return Math.Round(bytes / (1024.0 * 1024.0 * 1024.0), 2);
         }
 
         private void UpdateProgress(int percent)
