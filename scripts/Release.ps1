@@ -113,6 +113,7 @@ try {
     if ($forbidden) {
         throw "Forbidden release content detected:`n$($forbidden.FullName -join "`n")"
     }
+    & (Join-Path $projectRoot 'scripts\Test-PackageContents.ps1') -Path $appStage
 
     $signTool = Find-SignTool
     $signedFiles = @(
@@ -134,6 +135,8 @@ try {
     if (-not (Test-Path -LiteralPath $sbomPath)) { throw 'The release SBOM was not generated.' }
     Copy-Item -LiteralPath $sbomPath -Destination (
         Join-Path $installerStage "SoftcurseVaultCleaner_v$version.spdx.json")
+    & (Join-Path $projectRoot 'scripts\Test-PackageContents.ps1') -Path $appStage `
+        -RequireSignatures -RequireSbom
 
     $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if (-not $iscc) {

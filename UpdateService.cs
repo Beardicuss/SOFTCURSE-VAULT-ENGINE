@@ -385,7 +385,8 @@ namespace SoftcurseVaultCleaner
                     var closeData = Marshal.PtrToStructure<WinTrustData>(trustDataPointer);
                     closeData.StateAction = 2;
                     Marshal.StructureToPtr(closeData, trustDataPointer, true);
-                    WinVerifyTrust(IntPtr.Zero, GenericVerifyV2, trustDataPointer);
+                    int closeResult = WinVerifyTrust(IntPtr.Zero, GenericVerifyV2, trustDataPointer);
+                    GC.KeepAlive(closeResult);
                     Marshal.FreeHGlobal(trustDataPointer);
                 }
                 if (fileInfoPointer != IntPtr.Zero)
@@ -393,6 +394,7 @@ namespace SoftcurseVaultCleaner
             }
         }
 
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [DllImport("wintrust.dll", ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern int WinVerifyTrust(IntPtr window, [MarshalAs(UnmanagedType.LPStruct)] Guid action, IntPtr data);
 

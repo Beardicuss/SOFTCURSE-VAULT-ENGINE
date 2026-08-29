@@ -93,6 +93,43 @@ namespace SoftcurseVaultCleaner
     public sealed class SafeCleanupEngine
     {
         private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
+        private readonly IReadOnlyList<string> _protectedRoots;
+        private readonly string _approvedTemporaryRoot;
+        private readonly Func<string, bool> _isReparsePoint;
+        private readonly Func<string, long> _deleteFile;
+        private readonly Func<string, CancellationToken, long> _deleteDirectoryContents;
+
+        public SafeCleanupEngine()
+            : this(
+                GetProtectedRoots(),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())),
+                IsActualReparsePoint,
+                DeleteFileRecoverably,
+                DeleteDirectoryContentsRecoverably)
+        {
+        }
+
+        internal SafeCleanupEngine(
+            IEnumerable<string> protectedRoots,
+            string approvedTemporaryRoot,
+            Func<string, bool>? isReparsePoint = null,
+            Func<string, long>? deleteFile = null,
+            Func<string, CancellationToken, long>? deleteDirectoryContents = null)
+        {
+            ArgumentNullException.ThrowIfNull(protectedRoots);
+            ArgumentException.ThrowIfNullOrWhiteSpace(approvedTemporaryRoot);
+
+            _protectedRoots = protectedRoots
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Select(path => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)))
+                .Distinct(PathComparer)
+                .ToArray();
+            _approvedTemporaryRoot = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(approvedTemporaryRoot));
+            _isReparsePoint = isReparsePoint ?? IsActualReparsePoint;
+            _deleteFile = deleteFile ?? DeleteFileRecoverably;
+            _deleteDirectoryContents = deleteDirectoryContents ?? DeleteDirectoryContentsRecoverably;
+        }
 
         public CleanupPreviewItem Preview(CleanupTarget target)
         {
@@ -125,7 +162,7 @@ namespace SoftcurseVaultCleaner
         public Task<CleanupExecutionResult> ExecuteAsync(
             CleanupPlan plan,
             CancellationToken cancellationToken = default) =>
-            Task.Run(() => Execute(plan.Targets, cancellationToken), cancellationToken);
+            Task.Run(() => Execute(plan.Targets, cancellationToken));
 
         private CleanupExecutionResult Execute(
             IReadOnlyList<CleanupTarget> targets,
@@ -155,8 +192,8 @@ namespace SoftcurseVaultCleaner
                 {
                     long bytesFreed = target.Type switch
                     {
-                        CleanupTargetType.File => DeleteFileRecoverably(validation.CanonicalPath),
-                        CleanupTargetType.DirectoryContents => DeleteDirectoryContentsRecoverably(
+                        CleanupTargetType.File => _deleteFile(validation.CanonicalPath),
+                        CleanupTargetType.DirectoryContents => _deleteDirectoryContents(
                             validation.CanonicalPath, cancellationToken),
                         _ => throw new InvalidOperationException("Unsupported cleanup target type.")
                     };
@@ -181,7 +218,7 @@ namespace SoftcurseVaultCleaner
             return new CleanupExecutionResult { Items = results, WasCancelled = cancelled };
         }
 
-        private static (bool IsAllowed, string CanonicalPath, string Message) Validate(CleanupTarget target)
+        private (bool IsAllowed, string CanonicalPath, string Message) Validate(CleanupTarget target)
         {
             if (target == null || string.IsNullOrWhiteSpace(target.Path))
                 return (false, string.Empty, "The cleanup target is empty.");
@@ -211,7 +248,7 @@ namespace SoftcurseVaultCleaner
                 return (false, canonicalPath, "Drive and volume roots cannot be cleanup targets.");
             }
 
-            foreach (string protectedRoot in GetProtectedRoots())
+            foreach (string protectedRoot in _protectedRoots)
             {
                 if (PathComparer.Equals(canonicalPath, protectedRoot) ||
                     IsDescendant(protectedRoot, canonicalPath))
@@ -335,13 +372,13 @@ namespace SoftcurseVaultCleaner
                 throw new IOException("Cleanup refuses links, junctions, and mount points.");
         }
 
-        private static bool ContainsReparsePoint(string path)
+        private bool ContainsReparsePoint(string path)
         {
             string? current = path;
             while (!string.IsNullOrWhiteSpace(current))
             {
                 if ((File.Exists(current) || Directory.Exists(current)) &&
-                    (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                    _isReparsePoint(current))
                 {
                     return true;
                 }
@@ -355,7 +392,7 @@ namespace SoftcurseVaultCleaner
             return false;
         }
 
-        private static bool ContainsDescendantReparsePoint(string root)
+        private bool ContainsDescendantReparsePoint(string root)
         {
             try
             {
@@ -366,7 +403,7 @@ namespace SoftcurseVaultCleaner
                     string directory = pending.Pop();
                     foreach (string entry in Directory.EnumerateFileSystemEntries(directory))
                     {
-                        if ((File.GetAttributes(entry) & FileAttributes.ReparsePoint) != 0)
+                        if (_isReparsePoint(entry))
                             return true;
                         if (Directory.Exists(entry)) pending.Push(entry);
                     }
@@ -389,13 +426,16 @@ namespace SoftcurseVaultCleaner
                    !Path.IsPathRooted(relative);
         }
 
-        private static bool IsUnderApprovedTemporaryRoot(string path)
+        internal static bool IsPathDescendant(string candidate, string parent) =>
+            IsDescendant(candidate, parent);
+
+        private bool IsUnderApprovedTemporaryRoot(string path)
         {
-            string temp = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
-            return PathComparer.Equals(path, temp) || IsDescendant(path, temp);
+            return PathComparer.Equals(path, _approvedTemporaryRoot) ||
+                   IsDescendant(path, _approvedTemporaryRoot);
         }
 
-        private static IEnumerable<string> GetProtectedRoots()
+        private static HashSet<string> GetProtectedRoots()
         {
             var roots = new HashSet<string>(PathComparer);
 
@@ -417,7 +457,7 @@ namespace SoftcurseVaultCleaner
             return roots;
         }
 
-        private static long EstimateBytes(string path, CleanupTargetType type)
+        private long EstimateBytes(string path, CleanupTargetType type)
         {
             try
             {
@@ -430,15 +470,18 @@ namespace SoftcurseVaultCleaner
                 while (pending.Count > 0)
                 {
                     string directory = pending.Pop();
-                    EnsureNotReparsePoint(directory);
+                    if (_isReparsePoint(directory))
+                        throw new IOException("Cleanup refuses links, junctions, and mount points.");
                     foreach (string file in Directory.EnumerateFiles(directory))
                     {
-                        EnsureNotReparsePoint(file);
+                        if (_isReparsePoint(file))
+                            throw new IOException("Cleanup refuses links, junctions, and mount points.");
                         total += new FileInfo(file).Length;
                     }
                     foreach (string child in Directory.EnumerateDirectories(directory))
                     {
-                        EnsureNotReparsePoint(child);
+                        if (_isReparsePoint(child))
+                            throw new IOException("Cleanup refuses links, junctions, and mount points.");
                         pending.Push(child);
                     }
                 }
@@ -449,5 +492,8 @@ namespace SoftcurseVaultCleaner
                 return 0;
             }
         }
+
+        private static bool IsActualReparsePoint(string path) =>
+            (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
     }
 }

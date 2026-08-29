@@ -67,7 +67,7 @@ Type: filesandordirs; Name: "{app}\temp"
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usPostUninstall then
+  if (CurUninstallStep = usPostUninstall) and (not UninstallSilent) then
   begin
     if MsgBox('Also remove Softcurse Vault Cleaner settings, logs, staged updates, and WebView2 browsing data for this Windows account?',
       mbConfirmation, MB_YESNO) = IDYES then

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -284,53 +283,18 @@ namespace SoftcurseVaultCleaner
             Action<string> statusCb, Action<int> progressCb, CancellationToken token)
         {
             const long MIN_SIZE = 10 * 1024;
-            statusCb?.Invoke("Collecting file list…");
-
-            var bySize = new Dictionary<long, List<string>>();
-            foreach (var file in EnumerateFilesIterative(root))
-            {
-                if (token.IsCancellationRequested) return new List<DuplicateGroup>();
-                try
+            statusCb?.Invoke("Collecting and SHA-256 verifying candidate files…");
+            int groupId = 1;
+            return DuplicateFileVerifier.Find(root, MIN_SIZE,
+                    percent => progressCb?.Invoke(30 + (int)(percent * 0.7)), token)
+                .Select(group => new DuplicateGroup
                 {
-                    long sz = new FileInfo(file).Length;
-                    if (sz < MIN_SIZE) continue;
-                    if (!bySize.ContainsKey(sz)) bySize[sz] = new List<string>();
-                    bySize[sz].Add(file);
-                }
-                catch { }
-            }
-
-            var groups = new List<DuplicateGroup>();
-            var candidates = bySize.Where(kv => kv.Value.Count > 1).ToList();
-            int done = 0, gid = 1;
-            foreach (var kv in candidates)
-            {
-                if (token.IsCancellationRequested) break;
-                done++;
-                progressCb?.Invoke(30 + (int)(done / (double)candidates.Count * 70));
-                statusCb?.Invoke($"Hashing {done}/{candidates.Count} size groups…");
-                var byHash = new Dictionary<string, List<string>>();
-                foreach (var f in kv.Value)
-                {
-                    if (token.IsCancellationRequested) break;
-                    try
-                    {
-                        string h = ComputeMD5(f);
-                        if (!byHash.ContainsKey(h)) byHash[h] = new List<string>();
-                        byHash[h].Add(f);
-                    }
-                    catch { }
-                }
-                foreach (var hkv in byHash)
-                    if (hkv.Value.Count > 1)
-                        groups.Add(new DuplicateGroup
-                        {
-                            GroupId = gid++, Hash = hkv.Key.Substring(0, 8),
-                            FileSize = kv.Key, Files = hkv.Value
-                        });
-            }
-            groups.Sort((a, b) => b.WastedSize.CompareTo(a.WastedSize));
-            return groups;
+                    GroupId = groupId++,
+                    Hash = group.Sha256.Substring(0, 8),
+                    FileSize = group.FileSize,
+                    Files = group.Files.ToList()
+                })
+                .ToList();
         }
 
         // ── SCAN HELPERS ─────────────────────────────────────────────────────
@@ -452,35 +416,6 @@ namespace SoftcurseVaultCleaner
             try { foreach (var f in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
                     try { total += new FileInfo(f).Length; } catch { } } catch { }
             return total;
-        }
-
-        private IEnumerable<string> EnumerateFilesIterative(string root)
-        {
-            var q = new Queue<string>(); q.Enqueue(root);
-            while (q.Count > 0)
-            {
-                string dir = q.Dequeue();
-                string[] files; try { files = Directory.GetFiles(dir); } catch { files = Array.Empty<string>(); }
-                foreach (var f in files) yield return f;
-                string[] dirs; try { dirs = Directory.GetDirectories(dir); } catch { dirs = Array.Empty<string>(); }
-                foreach (var d in dirs) q.Enqueue(d);
-            }
-        }
-
-        private string ComputeMD5(string path)
-        {
-            using (var md5 = MD5.Create())
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 8192))
-            {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    md5.TransformBlock(buffer, 0, bytesRead, null, 0);
-                }
-                md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                return BitConverter.ToString(md5.Hash).Replace("-","").ToLower();
-            }
         }
 
         // ── SUGGESTIONS TEXT ─────────────────────────────────────────────────

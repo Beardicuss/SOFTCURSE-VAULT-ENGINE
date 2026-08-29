@@ -51,7 +51,10 @@ namespace SoftcurseVaultCleaner
         public long TotalSpaceFreed => _totalSpaceFreed;
 
         // DLL imports
-        [System.Runtime.InteropServices.DllImport("Shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+        [System.Runtime.InteropServices.DefaultDllImportSearchPaths(
+            System.Runtime.InteropServices.DllImportSearchPath.System32)]
+        [System.Runtime.InteropServices.DllImport("Shell32.dll", EntryPoint = "SHEmptyRecycleBinW",
+            CharSet = System.Runtime.InteropServices.CharSet.Unicode, ExactSpelling = true)]
         static extern uint SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
         private const uint SHERB_NOCONFIRMATION = 0x00000001;
         private const uint SHERB_NOPROGRESSUI = 0x00000002;

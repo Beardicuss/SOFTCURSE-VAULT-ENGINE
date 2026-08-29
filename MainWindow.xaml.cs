@@ -31,7 +31,9 @@ namespace SoftcurseVaultCleaner
             Bottom = 6, BottomLeft = 7, BottomRight = 8,
         }
 
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("user32.dll", EntryPoint = "SendMessageW", CharSet = CharSet.Unicode,
+            ExactSpelling = true)]
         private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
         public MainWindow()

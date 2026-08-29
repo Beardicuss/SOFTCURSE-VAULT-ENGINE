@@ -24,6 +24,7 @@
     </Content>
     <!-- vault.ico must be in output dir for system tray icon at runtime -->
     <Content Include="Resources\vault.ico">
+      <Link>vault.ico</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

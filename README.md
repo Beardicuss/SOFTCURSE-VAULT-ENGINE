@@ -131,6 +131,17 @@ dotnet run --project "Win11 Auto-Clean.csproj"
 bin/Release/net10.0-windows/Win11 Auto-Clean.exe
 ```
 
+### Safety verification
+
+```powershell
+dotnet restore "Win11 Auto-Clean.sln" --locked-mode
+dotnet build "Win11 Auto-Clean.sln" --configuration Release --no-restore -warnaserror
+dotnet run --project "SafeCleanupEngine.Tests/SafeCleanupEngine.Tests.csproj" --configuration Release --no-build
+./scripts/Test-ReleaseIntegrity.ps1
+```
+
+Destructive cleanup and installer lifecycle testing is restricted to disposable Windows VMs. See [tests/vm/README.md](tests/vm/README.md) for the fail-closed Hyper-V harness and required Windows 10/11 test matrix.
+
 ---
 
 # 🔐 Licensing and Releases
