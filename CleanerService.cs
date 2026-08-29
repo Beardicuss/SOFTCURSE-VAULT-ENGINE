@@ -67,6 +67,7 @@ namespace SoftcurseVaultCleaner
 
         public CleanupPlan CreateCleanupPlan(CleanupConfig config)
         {
+            ArgumentNullException.ThrowIfNull(config);
             var targets = new List<CleanupTarget>();
             string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -166,7 +167,17 @@ namespace SoftcurseVaultCleaner
                     "User-selected cleanup folder", "Custom", CleanupRisk.High,
                     CleanupPrivilege.StandardUser, CleanupTargetOrigin.UserSelected);
 
-            return CleanupPlan.Create($"cleanup:{Guid.NewGuid():N}", targets);
+            // A repeated custom path or overlapping category must never produce duplicate
+            // preview/execution entries. All discovered targets exist at this point, so
+            // canonicalization is deterministic and cannot turn a missing path into work.
+            CleanupTarget[] uniqueTargets = targets
+                .GroupBy(
+                    target => $"{target.Type}\0{Path.TrimEndingDirectorySeparator(Path.GetFullPath(target.Path))}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+
+            return CleanupPlan.Create($"cleanup:{Guid.NewGuid():N}", uniqueTargets);
         }
 
         public async Task ExecuteCleanupAsync(

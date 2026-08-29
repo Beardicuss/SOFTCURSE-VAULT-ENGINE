@@ -156,6 +156,34 @@ Assert(completePlan.Targets.Any(target =>
             StringComparison.OrdinalIgnoreCase)),
     "includes an existing custom path as an explicitly user-selected target");
 
+CleanupPlan emptyPlan = new CleanerService().CreateCleanupPlan(new CleanupConfig());
+Assert(emptyPlan.Targets.Count == 0,
+    "creates no filesystem targets when every cleanup category is disabled");
+
+CleanupPlan duplicateCustomPlan = new CleanerService().CreateCleanupPlan(new CleanupConfig
+{
+    CustomPaths = new List<string>
+    {
+        canonicalDirectory,
+        canonicalDirectory + Path.DirectorySeparatorChar,
+        Path.Combine(canonicalDirectory, ".")
+    }
+});
+Assert(duplicateCustomPlan.Targets.Count == 1,
+    "deduplicates equivalent custom paths after canonicalization",
+    $"Found {duplicateCustomPlan.Targets.Count} targets.");
+
+bool nullConfigRejected = false;
+try
+{
+    _ = new CleanerService().CreateCleanupPlan(null!);
+}
+catch (ArgumentNullException)
+{
+    nullConfigRejected = true;
+}
+Assert(nullConfigRejected, "rejects a null cleanup configuration");
+
 using var preCancelled = new CancellationTokenSource();
 preCancelled.Cancel();
 CleanupExecutionResult preCancelledResult = await isolatedEngine.ExecuteAsync(

@@ -140,7 +140,9 @@ dotnet run --project "SafeCleanupEngine.Tests/SafeCleanupEngine.Tests.csproj" --
 ./scripts/Test-ReleaseIntegrity.ps1
 ```
 
-Destructive cleanup and installer lifecycle testing is restricted to disposable Windows VMs. See [tests/vm/README.md](tests/vm/README.md) for the fail-closed Hyper-V harness and required Windows 10/11 test matrix.
+Routine cleanup testing uses randomized temporary-directory fixtures and injected system-operation fakes in `SafeCleanupEngine.Tests`. The suite exercises path normalization, protected locations, non-`C:` layouts, link/junction rejection, cancellation, partial failures, duplicate detection, recoverable deletion policy, and update verification without touching real system data. GitHub Actions runs it on an ephemeral Windows runner and can also be started manually from the Actions page.
+
+The fail-closed Hyper-V harness in [tests/vm/README.md](tests/vm/README.md) is optional release-hardening infrastructure only. It is not required for routine development and must never be run against a developer workstation.
 
 ---
 
