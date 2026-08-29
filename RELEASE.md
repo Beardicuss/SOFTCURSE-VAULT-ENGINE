@@ -2,15 +2,16 @@
 
 The production update channel is intentionally disabled until a real, publicly trusted Authenticode certificate is provisioned. Do not replace the empty trust values with test or self-signed credentials for a public release.
 
-## One-time trust provisioning
+## Signing architecture decision
 
-1. Obtain a production RSA Authenticode code-signing certificate that supports private-key export for the CI signing workflow.
-2. Export the certificate's RSA SubjectPublicKeyInfo as Base64 and place it in `UpdateTrust.MetadataPublicKeySpkiBase64`.
-3. Export the certificate's SHA-256 certificate hash as 64 hexadecimal characters and place it in `UpdateTrust.InstallerSignerCertificateSha256`.
-4. Add the PFX as Base64 to the GitHub Actions secret `SOFTCURSE_SIGNING_PFX_BASE64`.
-5. Add its password to `SOFTCURSE_SIGNING_PASSWORD`.
+The current release script supports only an exportable RSA Authenticode PFX and uses that RSA key for both Authenticode and update-metadata signatures. It is intentionally blocked until production credentials are provisioned. Do not purchase a certificate merely to satisfy this implementation assumption: many modern public signing services keep private keys in an HSM and never export a PFX.
 
-The release script verifies that the supplied PFX matches both compiled trust anchors before it builds or signs anything. CI installs the pinned .NET 10 SDK for the application and the .NET 8 runtime required by the pinned Microsoft SBOM tool.
+Before the first public release, choose and review one of these designs:
+
+1. **Cloud/HSM signing (preferred):** integrate the selected Authenticode service into CI, use a separate RSA key for update metadata, compile only public verification material into the application, and design signer validation to tolerate legitimate certificate rotation without accepting another publisher.
+2. **Exportable PFX:** obtain a publicly trusted RSA Authenticode certificate whose terms and key storage permit the existing CI workflow. Export its SubjectPublicKeyInfo and SHA-256 certificate hash into `UpdateTrust`, then store the Base64 PFX and password in protected GitHub release-environment secrets.
+
+For the current PFX path, the release script verifies that the supplied certificate matches both compiled trust anchors before it builds or signs anything. CI installs the pinned .NET 10 SDK for the application and the .NET 8 runtime required by the pinned Microsoft SBOM tool. A cloud-signing migration must replace those PFX-specific checks with equivalent fail-closed service identity, artifact-signature, metadata-signature, and certificate-rotation checks before release tags are enabled.
 
 ## Publishing a version
 

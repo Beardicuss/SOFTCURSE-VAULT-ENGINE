@@ -154,6 +154,8 @@ Production releases are built only from a clean, exact version tag. The release 
 
 The update channel deliberately fails closed until production trust anchors and CI signing secrets are provisioned. See [RELEASE.md](RELEASE.md) for the release procedure.
 
+Security reports and local-data handling are documented in [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md).
+
 ---
 
 # 🧭 Usage
