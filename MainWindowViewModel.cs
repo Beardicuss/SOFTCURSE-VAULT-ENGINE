@@ -19,6 +19,7 @@ namespace SoftcurseVaultCleaner
     {
         private readonly CleanerService _cleanerService;
         private readonly SafeCleanupEngine _safetyEngine;
+        private readonly Action<string> _persistentLog;
 
         // ── Services ────────────────────────────────────────────────────
         public AppSettings Settings => AppSettings.Instance;
@@ -61,7 +62,7 @@ namespace SoftcurseVaultCleaner
 
         // Timer and stats properties
         private string _timeElapsed = "Time: 00:00";
-        private string _spaceFreed = "Freed: 0 MB";
+        private string _spaceFreed = "Moved: 0 MB";
         private string _diskSpace = "C: 0.0GB FREE";
         private string _logText = "";
         private readonly System.Text.StringBuilder _logBuilder = new System.Text.StringBuilder();
@@ -80,8 +81,9 @@ namespace SoftcurseVaultCleaner
         public DiskAnalyzerViewModel DiskAnalyzer { get; }
         public AutoTuneViewModel AutoTune { get; }
 
-        public MainWindowViewModel()
+        public MainWindowViewModel(Action<string> persistentLog = null)
         {
+            _persistentLog = persistentLog;
             _cleanerService = new CleanerService();
             _safetyEngine = new SafeCleanupEngine();
             _status = "STANDBY";
@@ -129,9 +131,9 @@ namespace SoftcurseVaultCleaner
                 long freed = _cleanerService.TotalSpaceFreed;
                 double freedMB = freed / (1024.0 * 1024.0);
                 if (freedMB >= 1024)
-                    SpaceFreed = $"Freed: {freedMB / 1024.0:F1} GB";
+                    SpaceFreed = $"Moved: {freedMB / 1024.0:F1} GB";
                 else
-                    SpaceFreed = $"Freed: {freedMB:N0} MB";
+                    SpaceFreed = $"Moved: {freedMB:N0} MB";
 
                 // Refresh disk space during cleanup
                 DiskSpace = GetDiskFreeSpace();
@@ -434,9 +436,9 @@ namespace SoftcurseVaultCleaner
             long freed = _cleanerService.TotalSpaceFreed;
             double freedMB = freed / (1024.0 * 1024.0);
             if (freedMB >= 1024)
-                SpaceFreed = $"Freed: {freedMB / 1024.0:F1} GB";
+                SpaceFreed = $"{(config.CleanRecycleBin ? "Reclaimed" : "Moved")}: {freedMB / 1024.0:F1} GB";
             else
-                SpaceFreed = $"Freed: {freedMB:N0} MB";
+                SpaceFreed = $"{(config.CleanRecycleBin ? "Reclaimed" : "Moved")}: {freedMB:N0} MB";
 
             IsCleaning = false;
             Status = "CLEANUP PROTOCOL COMPLETE";
@@ -512,41 +514,27 @@ namespace SoftcurseVaultCleaner
 
             await Task.Run(() =>
             {
-                long potentialSpace = 0;
-
-                string sysRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
-                UpdateProgress(20);
-                SetStatus("Scanning TEMP folders...");
-                potentialSpace += CalculateDirectorySize(Path.GetTempPath());
-                potentialSpace += CalculateDirectorySize(Path.Combine(sysRoot, "Windows", "Temp"));
-
-                UpdateProgress(40);
-                SetStatus("Scanning browser caches...");
-                var browserPaths = new[]
+                UpdateProgress(25);
+                SetStatus("Scanning safe cleanup catalog...");
+                var scanConfig = new CleanupConfig
                 {
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Google", "Chrome", "User Data", "Default", "Cache"),
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "User Data", "Default", "Cache")
+                    CleanTempFiles = true,
+                    CleanCache = true,
+                    CleanDevTools = true,
+                    CleanGaming = true,
+                    CleanSystemDumps = true
                 };
-                foreach (var path in browserPaths)
-                {
-                    potentialSpace += CalculateDirectorySize(path);
-                }
-
-                UpdateProgress(60);
-                SetStatus("Scanning Windows Update cache...");
-                potentialSpace += CalculateDirectorySize(Path.Combine(sysRoot, "Windows", "SoftwareDistribution", "Download"));
-
-                UpdateProgress(80);
-                SetStatus("Scanning thumbnail cache...");
-                string thumbCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Explorer");
-                potentialSpace += CalculateDirectorySize(thumbCache);
+                CleanupPlan scanPlan = _cleanerService.CreateCleanupPlan(scanConfig);
+                UpdateProgress(65);
+                IReadOnlyList<CleanupPreviewItem> preview = _safetyEngine.Preview(scanPlan);
+                long potentialSpace = preview.Where(item => item.IsAllowed).Sum(item => item.EstimatedBytes);
 
                 UpdateProgress(100);
                 double potentialMB = potentialSpace / (1024.0 * 1024.0);
                 if (potentialMB >= 1024)
-                    SetStatus($"SCAN COMPLETE: {potentialMB / 1024.0:F1} GB RECOVERABLE");
+                    SetStatus($"SCAN COMPLETE: {potentialMB / 1024.0:F1} GB SAFE TARGETS");
                 else
-                    SetStatus($"SCAN COMPLETE: {potentialMB:N0} MB RECOVERABLE");
+                    SetStatus($"SCAN COMPLETE: {potentialMB:N0} MB SAFE TARGETS");
 
                 System.Threading.Thread.Sleep(1000);
             });
@@ -592,6 +580,7 @@ namespace SoftcurseVaultCleaner
 
         public void AddLogMessage(string message)
         {
+            try { _persistentLog?.Invoke(message); } catch { }
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             string logLine = $"[{timestamp}] {message}";
             System.Windows.Application.Current.Dispatcher.Invoke(() =>

@@ -150,6 +150,15 @@ Assert(completePlan.Targets.All(target => target.DeletionMode == CleanupDeletion
 Assert(completePlan.Targets.All(target => !string.IsNullOrWhiteSpace(target.Reason) &&
                                           !string.IsNullOrWhiteSpace(target.Category)),
     "gives every cleanup target a reason and category");
+Assert(completePlan.Targets.All(target => !target.Path.EndsWith(
+        Path.Combine("Android", "Sdk", "system-images"), StringComparison.OrdinalIgnoreCase)),
+    "never treats installed Android emulator images as cache");
+Assert(completePlan.Targets.All(target => !target.Path.EndsWith(
+        Path.Combine("AppData", "Local", "UnrealEngine"), StringComparison.OrdinalIgnoreCase)),
+    "never targets the broad Unreal Engine data root");
+Assert(completePlan.Targets.All(target => !target.Path.EndsWith(
+        Path.Combine("Spotify", "Data"), StringComparison.OrdinalIgnoreCase)),
+    "never removes Spotify offline/application data as cache");
 Assert(completePlan.Targets.Any(target =>
         target.Origin == CleanupTargetOrigin.UserSelected &&
         string.Equals(Path.GetFullPath(target.Path), canonicalDirectory,

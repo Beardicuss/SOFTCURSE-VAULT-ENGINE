@@ -92,6 +92,21 @@ namespace SoftcurseVaultCleaner
                         CleanupTargetType.File, CleanupTargetOrigin.BuiltIn, category, risk, privilege));
             }
 
+            void AddChromiumCaches(string browser, string userDataRoot)
+            {
+                if (!Directory.Exists(userDataRoot)) return;
+                foreach (string profileDirectory in Directory.EnumerateDirectories(userDataRoot)
+                    .Where(path => Path.GetFileName(path).Equals("Default", StringComparison.OrdinalIgnoreCase) ||
+                                   Path.GetFileName(path).StartsWith("Profile ", StringComparison.OrdinalIgnoreCase)))
+                {
+                    string profileName = Path.GetFileName(profileDirectory);
+                    foreach (string cacheName in new[] { "Cache", "Code Cache", "GPUCache", "GrShaderCache", "ShaderCache" })
+                        AddDirectory($"cache:browser:{browser}:{profileName}:{cacheName}",
+                            $"{browser} {profileName} {cacheName}", Path.Combine(profileDirectory, cacheName),
+                            "Browser-generated data that is recreated as needed", "Browsers", CleanupRisk.Low);
+                }
+            }
+
             if (config.CleanTempFiles)
             {
                 AddDirectory("temp:user", "User TEMP", Path.GetTempPath(), "Per-user temporary files", "Temporary", CleanupRisk.Low);
@@ -109,9 +124,17 @@ namespace SoftcurseVaultCleaner
                         foreach (string file in Directory.EnumerateFiles(explorer, pattern))
                             AddFile($"cache:thumbnail:{file}", "Thumbnail cache", file, "Explorer generated cache", "System", CleanupRisk.Low);
 
-                AddDirectory("cache:store", "UWP TempState", Path.Combine(local, "Packages", "TempState"), "UWP temporary state", "Applications");
-                AddDirectory("cache:unreal", "Unreal Engine data", Path.Combine(local, "UnrealEngine"), "Broad Unreal Engine data root", "Developer", CleanupRisk.High);
-                AddDirectory("cache:android", "Android system images", Path.Combine(local, "Android", "Sdk", "system-images"), "Installed Android emulator images", "Developer", CleanupRisk.High);
+                string packages = Path.Combine(local, "Packages");
+                if (Directory.Exists(packages))
+                    foreach (string package in Directory.EnumerateDirectories(packages))
+                        AddDirectory($"cache:uwp:{Path.GetFileName(package)}", $"{Path.GetFileName(package)} TempState",
+                            Path.Combine(package, "TempState"), "Per-app temporary state", "Applications", CleanupRisk.Low);
+
+                AddDirectory("cache:unreal:common-ddc", "Unreal shared derived-data cache",
+                    Path.Combine(local, "UnrealEngine", "Common", "DerivedDataCache"),
+                    "Generated shaders and derived assets; projects are not removed", "Developer", CleanupRisk.Moderate);
+                AddDirectory("cache:android:build", "Android build cache", Path.Combine(profile, ".android", "build-cache"),
+                    "Generated Android build artifacts; SDK images are not removed", "Developer", CleanupRisk.Moderate);
 
                 foreach (string path in new[]
                 {
@@ -120,18 +143,21 @@ namespace SoftcurseVaultCleaner
                     Path.Combine(local, "Intel", "GfxCache")
                 }) AddDirectory($"cache:driver:{path}", "Driver cache", path, "Graphics driver cache", "Drivers");
 
-                foreach (string path in new[]
-                {
-                    Path.Combine(local, "Google", "Chrome", "User Data", "Default", "Cache"),
-                    Path.Combine(local, "Microsoft", "Edge", "User Data", "Default", "Cache"),
-                    Path.Combine(local, "BraveSoftware", "Brave-Browser", "User Data", "Default", "Cache")
-                }) AddDirectory($"cache:browser:{path}", "Browser cache", path, "Browser-generated cache", "Browsers", CleanupRisk.Low);
+                AddChromiumCaches("Chrome", Path.Combine(local, "Google", "Chrome", "User Data"));
+                AddChromiumCaches("Edge", Path.Combine(local, "Microsoft", "Edge", "User Data"));
+                AddChromiumCaches("Brave", Path.Combine(local, "BraveSoftware", "Brave-Browser", "User Data"));
+                AddDirectory("cache:inet", "Windows Internet cache", Path.Combine(local, "Microsoft", "Windows", "INetCache"),
+                    "Generated web cache", "Browsers", CleanupRisk.Low);
 
                 string firefoxProfiles = Path.Combine(roaming, "Mozilla", "Firefox", "Profiles");
                 if (Directory.Exists(firefoxProfiles))
                     foreach (string profileDirectory in Directory.EnumerateDirectories(firefoxProfiles))
                         AddDirectory($"cache:firefox:{profileDirectory}", "Firefox cache2",
                             Path.Combine(profileDirectory, "cache2"), "Firefox generated cache", "Browsers", CleanupRisk.Low);
+                if (Directory.Exists(firefoxProfiles))
+                    foreach (string profileDirectory in Directory.EnumerateDirectories(firefoxProfiles))
+                        AddDirectory($"cache:firefox-startup:{profileDirectory}", "Firefox startup cache",
+                            Path.Combine(profileDirectory, "startupCache"), "Firefox generated startup cache", "Browsers", CleanupRisk.Low);
             }
 
             if (config.CleanDevTools)
@@ -143,16 +169,39 @@ namespace SoftcurseVaultCleaner
                 }) AddDirectory($"dev:{path}", "Developer cache", path, "Developer dependency/cache data", "Developer", CleanupRisk.Moderate);
 
             if (config.CleanGaming)
-                foreach (string path in new[]
+            {
+                var applicationCaches = new (string Name, string Path)[]
                 {
-                    Path.Combine(roaming, "discord", "Cache"), Path.Combine(roaming, "discord", "Code Cache"),
-                    Path.Combine(local, "EpicGamesLauncher", "Saved", "webcache"),
-                    Path.Combine(local, "Spotify", "Data"), Path.Combine(roaming, "Microsoft", "Teams", "Cache")
-                }) AddDirectory($"gaming:{path}", "Gaming/application data", path, "Application cache or download data", "Applications", CleanupRisk.High);
+                    ("Discord cache", Path.Combine(roaming, "discord", "Cache")),
+                    ("Discord code cache", Path.Combine(roaming, "discord", "Code Cache")),
+                    ("Discord GPU cache", Path.Combine(roaming, "discord", "GPUCache")),
+                    ("Teams cache", Path.Combine(roaming, "Microsoft", "Teams", "Cache")),
+                    ("Teams code cache", Path.Combine(roaming, "Microsoft", "Teams", "Code Cache")),
+                    ("Teams GPU cache", Path.Combine(roaming, "Microsoft", "Teams", "GPUCache")),
+                    ("Teams service-worker cache", Path.Combine(roaming, "Microsoft", "Teams", "Service Worker", "CacheStorage")),
+                    ("Slack cache", Path.Combine(roaming, "Slack", "Cache")),
+                    ("Slack code cache", Path.Combine(roaming, "Slack", "Code Cache")),
+                    ("Slack GPU cache", Path.Combine(roaming, "Slack", "GPUCache")),
+                    ("Battle.net cache", Path.Combine(local, "Battle.net", "Cache")),
+                    ("Steam HTML cache", Path.Combine(local, "Steam", "htmlcache")),
+                    ("Steam app HTTP cache", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam", "appcache", "httpcache"))
+                };
+                foreach (var item in applicationCaches)
+                    AddDirectory($"application:{item.Name}:{item.Path}", item.Name, item.Path,
+                        "Generated application cache; account and installed game data are retained", "Applications", CleanupRisk.Moderate);
+
+                string epicSaved = Path.Combine(local, "EpicGamesLauncher", "Saved");
+                if (Directory.Exists(epicSaved))
+                    foreach (string webCache in Directory.EnumerateDirectories(epicSaved, "webcache*"))
+                        AddDirectory($"application:epic:{webCache}", "Epic Launcher web cache", webCache,
+                            "Generated launcher web cache", "Applications", CleanupRisk.Moderate);
+            }
 
             if (config.CleanSystemDumps)
             {
-                foreach (string path in new[] { Path.Combine(local, "CrashDumps"), Path.Combine(local, "Microsoft", "Windows", "WER") })
+                foreach (string path in new[] { Path.Combine(local, "CrashDumps"),
+                    Path.Combine(local, "Microsoft", "Windows", "WER", "ReportArchive"),
+                    Path.Combine(local, "Microsoft", "Windows", "WER", "ReportQueue") })
                     AddDirectory($"dump:{path}", "System dump directory", path, "Crash diagnostic data", "Diagnostics", CleanupRisk.Moderate);
             }
 
@@ -204,49 +253,34 @@ namespace SoftcurseVaultCleaner
             LogStatus("=== INITIATING CLEANUP PROTOCOL ===");
             UpdateStatus("INITIATING CLEANUP SEQUENCE");
 
-            // Build task list based on config — uses Func<Task> for async support
+            // Execute the exact immutable plan the user previewed. Keeping discovery and
+            // execution in one catalog prevents target drift and duplicate cleanup logic.
             var tasks = new List<(string Name, Func<Task> Task)>();
-
-            if (config.CleanRecycleBin)
-                tasks.Add(("Recycle Bin Incineration", () => { CleanRecycleBin(); return Task.CompletedTask; }));
-
-            if (config.CleanTempFiles)
-                tasks.Add(("TEMP Files Purge", () => { CleanTempFolders(); return Task.CompletedTask; }));
-
-            if (config.CleanCache)
-            {
-                tasks.Add(("PYTHON PIP Cache Purge", () => { CleanPipCache(); return Task.CompletedTask; }));
-                tasks.Add(("Thumbnail Cache Clean", () => { CleanThumbnailCache(); return Task.CompletedTask; }));
-                tasks.Add(("UWP App Cache Clean", () => { CleanMicrosoftStoreCache(); return Task.CompletedTask; }));
-                tasks.Add(("Driver Cache Purge", () => { CleanDriverCachesTask(); return Task.CompletedTask; }));
-                tasks.Add(("Unreal Engine Purge", () => { CleanUnrealEngineCache(); return Task.CompletedTask; }));
-                tasks.Add(("Android SDK Clean", () => { CleanAndroidSDK(); return Task.CompletedTask; }));
-                tasks.Add(("Browser Data Wipe", () => { CleanBrowserCaches(); return Task.CompletedTask; }));
-            }
-
-            if (config.CleanDevTools)
-                tasks.Add(("Dev Tools Optimization", () => { CleanDevToolsCaches(); return Task.CompletedTask; }));
-
-            if (config.CleanGaming)
-                tasks.Add(("Gaming & Comms Purge", () => { CleanGamingCaches(); return Task.CompletedTask; }));
-
-            if (config.CleanSystemDumps)
-                tasks.Add(("System Dumps Eradication", () => { CleanSystemDumps(); return Task.CompletedTask; }));
+            if (_approvedPlan.Targets.Count > 0)
+                tasks.Add(("Confirmed filesystem cleanup", async () =>
+                {
+                    CleanupExecutionResult result = await _cleanupEngine.ExecuteAsync(_approvedPlan, token);
+                    foreach (CleanupItemResult item in result.Items)
+                    {
+                        if (item.Succeeded)
+                        {
+                            Interlocked.Add(ref _totalSpaceFreed, item.BytesFreed);
+                            LogStatus($"MOVED: {item.Target.DisplayName} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB to Recycle Bin)");
+                        }
+                        else
+                            LogStatus($"{(item.WasSkipped ? "SKIPPED" : "FAILED")}: {item.Target.DisplayName} - {item.Message}");
+                    }
+                }));
 
             if (config.CleanDNS)
                 tasks.Add(("DNS Cache Flush", FlushDNSCacheAsync));
 
-            if (config.CleanExtreme)
-                tasks.Add(("Explorer Privacy Cleanup", CleanExtremeTasksAsync));
-
             if (config.DeepScanMode)
                 tasks.Add(("Supported Windows Component Cleanup", RunDISMCleanupAsync));
 
-            // Custom paths from user
-            if (config.CustomPaths != null && config.CustomPaths.Count > 0)
-            {
-                tasks.Add(("Custom Folder Cleanup", () => { CleanCustomPaths(config.CustomPaths); return Task.CompletedTask; }));
-            }
+            // Empty last so files moved during this run are actually reclaimed.
+            if (config.CleanRecycleBin)
+                tasks.Add(("Empty Recycle Bin", () => { CleanRecycleBin(); return Task.CompletedTask; }));
 
             // Execute tasks with evenly distributed progress (5% to 95%)
             int totalTasks = tasks.Count;
@@ -265,7 +299,9 @@ namespace SoftcurseVaultCleaner
             {
                 double freedMB = _totalSpaceFreed / (1024.0 * 1024.0);
                 LogStatus("=== CLEANUP PROTOCOL COMPLETE ===");
-                LogStatus($"SYSTEM: All targets eliminated successfully - Freed {freedMB:N0} MB");
+                LogStatus(config.CleanRecycleBin
+                    ? $"SYSTEM: {freedMB:N0} MB moved, then Recycle Bin emptied"
+                    : $"SYSTEM: {freedMB:N0} MB moved to Recycle Bin (recoverable; disk space is reclaimed when it is emptied)");
                 UpdateStatus("CLEANUP PROTOCOL SUCCESSFUL");
                 UpdateProgress(100);
             }

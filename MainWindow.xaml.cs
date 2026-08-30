@@ -41,11 +41,11 @@ namespace SoftcurseVaultCleaner
             InitializeComponent();
             Loaded += MainWindow_Loaded;
 
-            DataContext = new MainWindowViewModel();
+            logFile = Path.Combine(logDir, $"cleanup-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            DataContext = new MainWindowViewModel(WriteLogFile);
 
             this.SourceInitialized += MainWindow_SourceInitialized;
 
-            logFile = Path.Combine(logDir, $"cleanup-{DateTime.Now:yyyyMMdd-HHmmss}.log");
             InitializeUI();
             InitializeTrayIcon();
 
@@ -183,21 +183,18 @@ namespace SoftcurseVaultCleaner
 
         private void LogMessage(string message)
         {
-            string timestamp = DateTime.Now.ToString("HH:mm:ss");
-            string logMessage = $"[{timestamp}] {message}";
-
-            try
-            {
-                Directory.CreateDirectory(logDir);
-                File.AppendAllText(logFile, logMessage + Environment.NewLine);
-            }
-            catch { }
-
             Dispatcher.Invoke(() =>
             {
                 var vm = DataContext as MainWindowViewModel;
                 vm?.AddLogMessage(message);
             });
+        }
+
+        private void WriteLogFile(string message)
+        {
+            string logMessage = $"[{DateTime.Now:HH:mm:ss}] {message}";
+            Directory.CreateDirectory(logDir);
+            File.AppendAllText(logFile, logMessage + Environment.NewLine);
         }
 
         // Auto-scroll log textbox to bottom when content changes
