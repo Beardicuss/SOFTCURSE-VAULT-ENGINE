@@ -24,8 +24,8 @@ $credential = Get-Credential -Message 'Disposable VM administrator'
   -VmNames 'SVC-WIN10','SVC-WIN11','SVC-NOWEBVIEW','SVC-NONC' `
   -CheckpointName 'Phase4-Clean' `
   -GuestAdministratorCredential $credential `
-  -InstallerPath 'C:\releases\SoftcurseVaultCleaner_Setup_v3.0.0.exe' `
-  -ExpectedVersion '3.0.0' `
+  -InstallerPath 'C:\releases\SoftcurseVaultCleaner_Setup_v1.0.0.exe' `
+  -ExpectedVersion '1.0.0' `
   -ConfirmRestoreCheckpoints
 ```
 

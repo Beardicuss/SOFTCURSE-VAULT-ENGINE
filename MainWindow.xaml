@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SoftcurseVaultCleaner"
         xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-        Title="SOFTCURSE VAULT ENGINE v3.0"
+        Title="SOFTCURSE VAULT CLEANER v1.0.0"
         Height="750" Width="1000"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -333,7 +333,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="20,0">
-                                <TextBlock Text=" SOFTCURSE VAULT ENGINE v3.0 "
+                                <TextBlock Text=" SOFTCURSE VAULT CLEANER v1.0.0 "
                                            FontFamily="Consolas"
                                            FontSize="20"
                                            FontWeight="Bold"
@@ -1116,29 +1116,25 @@
     </Grid>
 </TabItem>
 
-<!-- ══ TAB 3: AUTO-TUNE (Ultimate Optimization) ══ -->
-<TabItem Header="  ⚡ AUTO-TUNE  " Style="{StaticResource TechTabItem}">
+<!-- ══ TAB 3: STARTUP MANAGER (read-only preview) ══ -->
+<TabItem Header="  ⚡ STARTUP MANAGER  " Style="{StaticResource TechTabItem}">
     <Grid DataContext="{Binding AutoTune}" Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Header and Auto-Clean Toggle -->
+        <!-- Header -->
         <Border Grid.Row="0" Background="#050505" BorderBrush="#00FFFF" BorderThickness="1" Padding="15" Margin="0,0,0,15">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="ULTIMATE SYSTEM OPTIMIZATION" Foreground="#00FFFF" FontFamily="Consolas" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="STARTUP AND REGISTRY INSPECTION" Foreground="#00FFFF" FontFamily="Consolas" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="Read-only preview: modification controls are disabled until backup and rollback are implemented."
+                               Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="0,4,0,0"/>
                     <TextBlock Text="{Binding Status}" Foreground="#4ade80" FontFamily="Consolas" FontSize="11" Margin="0,5,0,0"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⚡ Smart Auto-Clean Scheduler" Foreground="#CCCCCC" FontFamily="Consolas" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <CheckBox Style="{StaticResource TechCheckBox}" IsChecked="{Binding EnableAutoClean}" 
-                              ToolTip="Automatically run cleanup in the background every 4 hours when minimized"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -1173,7 +1169,8 @@
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,15,0,0">
                         <Button Content="🔍 SCAN STARTUP" Style="{StaticResource TechButton}" Command="{Binding ScanStartupCommand}" Margin="0,0,10,0" Padding="12,5"/>
                         <Button Content="🗑 DELETE CHECKED" Style="{StaticResource TechButton}" Command="{Binding DeleteSelectedStartupCommand}" 
-                                Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d" Padding="12,5"/>
+                                Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d" Padding="12,5"
+                                IsEnabled="False" ToolTip="Disabled until backup, confirmation, and rollback are implemented."/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -1200,7 +1197,8 @@
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,15,0,0">
                         <Button Content="🔍 SCAN REGISTRY" Style="{StaticResource TechButton}" Command="{Binding ScanRegistryCommand}" Margin="0,0,10,0" Padding="12,5"/>
                         <Button Content="🔧 FIX CHECKED" Style="{StaticResource TechButton}" Command="{Binding FixSelectedRegistryCommand}" 
-                                Background="#001a1a" BorderBrush="#0088FF" Foreground="#0088FF" Padding="12,5"/>
+                                Background="#001a1a" BorderBrush="#0088FF" Foreground="#0088FF" Padding="12,5"
+                                IsEnabled="False" ToolTip="Disabled until registry backup, confirmation, and rollback are implemented."/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -1256,7 +1254,7 @@
             </Expander>
             <Expander Header="How does duplicate finder work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="The duplicate finder scans your chosen folder, groups files by size, then computes MD5 hashes for files with matching sizes. Files with identical hashes are exact duplicates. You can choose which copies to delete, keeping only the one you want."/>
+                    Text="The duplicate finder scans your chosen folder, groups files by size, then computes SHA-256 hashes for files with matching sizes. Files with identical hashes are exact duplicates. You can choose which copies to move to the Recycle Bin, keeping the one you want."/>
             </Expander>
 
             <!-- Large Files -->

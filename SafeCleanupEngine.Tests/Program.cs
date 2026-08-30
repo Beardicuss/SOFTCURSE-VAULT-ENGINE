@@ -310,7 +310,7 @@ UpdateManifestResult validUpdate = UpdateManifestVerifier.Verify(
     validEnvelope, updatePublicKey, new Version(3, 0, 0));
 Assert(validUpdate.Succeeded, "accepts valid signed update metadata", validUpdate.Error);
 
-var currentManifest = validManifest with { Version = "3.0.0" };
+var currentManifest = validManifest with { Version = "1.0.0" };
 byte[] currentEnvelope = SignManifest(currentManifest);
 UpdateManifestResult currentUpdate = UpdateManifestVerifier.Verify(
     currentEnvelope, updatePublicKey, new Version(3, 0, 0));

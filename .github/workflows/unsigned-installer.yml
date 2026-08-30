@@ -1,4 +1,4 @@
-name: Build unsigned installer candidate
+name: Build development installer
 
 on:
   workflow_dispatch:
@@ -39,13 +39,13 @@ jobs:
           cache-dependency-path: '**/packages.lock.json'
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
-      - name: Build unsigned installer candidate
+      - name: Build development installer
         shell: pwsh
         run: ./scripts/Build-UnsignedInstaller.ps1
-      - name: Upload unsigned candidate
+      - name: Upload development installer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: SoftcurseVaultCleaner-v3.0.0-UNSIGNED
-          path: artifacts/unsigned-v3.0.0/
+          name: SoftcurseVaultCleaner-v1.0.0-development
+          path: artifacts/development-v1.0.0/
           if-no-files-found: error
           retention-days: 14

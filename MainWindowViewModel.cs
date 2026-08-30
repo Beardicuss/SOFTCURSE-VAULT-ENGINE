@@ -73,8 +73,6 @@ namespace SoftcurseVaultCleaner
 
         // Timer for elapsed time tracking
         private DispatcherTimer _cleanupTimer;
-        private DispatcherTimer _autoCleanTimer;
-        private DateTime _lastAutoCleanTime;
         private Stopwatch _cleanupStopwatch;
 
         // ── Disk Analyzer sub-ViewModel ───────────────────────────────────────
@@ -139,20 +137,6 @@ namespace SoftcurseVaultCleaner
                 DiskSpace = GetDiskFreeSpace();
             };
 
-            // Setup AutoClean timer (checks every 5 mins)
-            _lastAutoCleanTime = DateTime.Now;
-            _autoCleanTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
-            _autoCleanTimer.Tick += AutoCleanTick;
-            _autoCleanTimer.Start();
-        }
-
-        private async void AutoCleanTick(object sender, EventArgs e)
-        {
-            // Phase 1 safety: unattended deletion stays disabled until automatic
-            // cleanup has its own narrowly allowlisted, previewable operation set.
-            if (AutoTune.EnableAutoClean)
-                AddLogMessage("[SAFETY] Auto-clean is paused during the Phase 1 safety migration.");
-            await Task.CompletedTask;
         }
 
         public bool IsCleaning

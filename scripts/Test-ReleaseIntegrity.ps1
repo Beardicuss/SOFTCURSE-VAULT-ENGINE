@@ -12,6 +12,7 @@ $installerPath = Join-Path $projectRoot 'installer\SoftcurseVaultCleaner.iss'
 $trustPath = Join-Path $projectRoot 'UpdateTrust.cs'
 $releaseScriptPath = Join-Path $projectRoot 'scripts\Release.ps1'
 $workflowPath = Join-Path $projectRoot '.github\workflows\release.yml'
+$cleanupEnginePath = Join-Path $projectRoot 'SafeCleanupEngine.cs'
 
 $props = [xml](Get-Content -Raw -LiteralPath $propsPath)
 $project = [xml](Get-Content -Raw -LiteralPath $projectPath)
@@ -77,6 +78,16 @@ if ($trackedAudits) { throw "Security audit reports must remain non-public: $tra
 $machinePaths = git -C $projectRoot grep -n -I -E 'C:\\Users\\[^\\]+' -- '*.cs' '*.xaml' '*.ps1' '*.json' '*.props' '*.csproj' 2>$null
 if ($LASTEXITCODE -eq 0 -and $machinePaths) { throw "Machine-specific user path detected:`n$machinePaths" }
 if ($LASTEXITCODE -gt 1) { throw 'Machine-path source scan failed.' }
+
+$cleanupEngineSource = Get-Content -Raw -LiteralPath $cleanupEnginePath
+if ($cleanupEngineSource -match 'OnlyErrorDialogs|UIOption\.AllDialogs') {
+    throw 'Cleanup must never request shell deletion dialogs.'
+}
+foreach ($silentFlag in @('FofSilent', 'FofNoConfirmation', 'FofNoErrorUi')) {
+    if ($cleanupEngineSource -notmatch $silentFlag) {
+        throw "Silent Recycle Bin implementation is missing '$silentFlag'."
+    }
+}
 
 $global:LASTEXITCODE = 0
 Write-Output "Release integrity checks passed for version $version and WebView2 $webViewVersion."

@@ -1,10 +1,10 @@
 #nullable enable
 
-using Microsoft.VisualBasic.FileIO;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -92,6 +92,29 @@ namespace SoftcurseVaultCleaner
     /// </summary>
     public sealed class SafeCleanupEngine
     {
+        private const uint FoDelete = 0x0003;
+        private const ushort FofSilent = 0x0004;
+        private const ushort FofNoConfirmation = 0x0010;
+        private const ushort FofAllowUndo = 0x0040;
+        private const ushort FofNoConfirmMkdir = 0x0200;
+        private const ushort FofNoErrorUi = 0x0400;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct ShFileOpStruct
+        {
+            public IntPtr Hwnd;
+            public uint Function;
+            [MarshalAs(UnmanagedType.LPWStr)] public string From;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? To;
+            public ushort Flags;
+            [MarshalAs(UnmanagedType.Bool)] public bool AnyOperationsAborted;
+            public IntPtr NameMappings;
+            [MarshalAs(UnmanagedType.LPWStr)] public string? ProgressTitle;
+        }
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = false)]
+        private static extern int SHFileOperation(ref ShFileOpStruct operation);
         private static readonly StringComparer PathComparer = StringComparer.OrdinalIgnoreCase;
         private readonly IReadOnlyList<string> _protectedRoots;
         private readonly string _approvedTemporaryRoot;
@@ -294,12 +317,24 @@ namespace SoftcurseVaultCleaner
         {
             EnsureNotReparsePoint(path);
             long size = new FileInfo(path).Length;
-            FileSystem.DeleteFile(
-                path,
-                UIOption.OnlyErrorDialogs,
-                RecycleOption.SendToRecycleBin,
-                UICancelOption.ThrowException);
+            MoveToRecycleBinWithoutUi(path);
             return File.Exists(path) ? 0 : size;
+        }
+
+        private static void MoveToRecycleBinWithoutUi(string path)
+        {
+            var operation = new ShFileOpStruct
+            {
+                Function = FoDelete,
+                From = path + '\0' + '\0',
+                To = null,
+                Flags = FofSilent | FofNoConfirmation | FofAllowUndo |
+                        FofNoConfirmMkdir | FofNoErrorUi,
+                ProgressTitle = null
+            };
+            int result = SHFileOperation(ref operation);
+            if (result != 0 || operation.AnyOperationsAborted)
+                throw new IOException($"Windows could not move the item to the Recycle Bin (shell result 0x{result:X}).");
         }
 
         private static long DeleteDirectoryContentsRecoverably(
@@ -347,11 +382,7 @@ namespace SoftcurseVaultCleaner
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!Directory.Exists(childDirectory)) continue;
                 EnsureNotReparsePoint(childDirectory);
-                FileSystem.DeleteDirectory(
-                    childDirectory,
-                    UIOption.OnlyErrorDialogs,
-                    RecycleOption.SendToRecycleBin,
-                    UICancelOption.ThrowException);
+                MoveToRecycleBinWithoutUi(childDirectory);
             }
 
             return bytesFreed;

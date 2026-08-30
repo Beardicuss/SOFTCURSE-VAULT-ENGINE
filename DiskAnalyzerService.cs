@@ -420,16 +420,17 @@ namespace SoftcurseVaultCleaner
 
         // ── SUGGESTIONS TEXT ─────────────────────────────────────────────────
 
-        public static string BuildSuggestions(DiskAnalysisResult result)
+        public static string BuildSuggestions(DiskAnalysisResult result, string selectedDrive)
         {
             long total = 1, free = 0;
-            try { var d = new DriveInfo("C"); total = d.TotalSize; free = d.AvailableFreeSpace; } catch { }
+            string driveLabel = string.IsNullOrWhiteSpace(selectedDrive) ? "System drive" : selectedDrive.TrimEnd('\\');
+            try { var d = new DriveInfo(selectedDrive); total = d.TotalSize; free = d.AvailableFreeSpace; } catch { }
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("╔══════════════════════════════════════════════════════════════╗");
             sb.AppendLine("║            SOFTCURSE VAULT ENGINE — ANALYSIS REPORT         ║");
             sb.AppendLine("╚══════════════════════════════════════════════════════════════╝");
             sb.AppendLine();
-            sb.AppendLine($"  C: Drive  {SizeFormatter.Format(free)} free / {SizeFormatter.Format(total)} total  ({free*100.0/total:F1}% free)");
+            sb.AppendLine($"  {driveLabel} Drive  {SizeFormatter.Format(free)} free / {SizeFormatter.Format(total)} total  ({free*100.0/total:F1}% free)");
             sb.AppendLine($"  Safe junk:    {SizeFormatter.Format(result.TotalJunkSafe)}  ← check boxes in Junk Scan tab, then DELETE SELECTED");
             sb.AppendLine($"  Review items: {SizeFormatter.Format(result.TotalJunkReview)}  ← inspect manually before deleting");
             sb.AppendLine();
@@ -461,73 +462,27 @@ namespace SoftcurseVaultCleaner
 
         private List<JunkTarget> BuildJunkTargets()
         {
-            string u      = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            string local  = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string roaming= Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-
-            JunkTarget T(string label, string path, string note, bool safe, string cat,
-                CleanupPrivilege privilege = CleanupPrivilege.StandardUser)
-                => new JunkTarget { Label=label, FullPath=path, Note=note, Safe=safe, Category=cat,
-                    RequiredPrivilege=privilege };
-
-            return new List<JunkTarget>
+            var config = new CleanupConfig
             {
-                // System
-                T("Windows Temp",         @"C:\Windows\Temp",                                        "Use Windows Settings → Storage → Temporary files",      false, "System", CleanupPrivilege.Administrator),
-                T("User Temp (%TEMP%)",   Path.Combine(local,"Temp"),                               "Per-user application leftovers",                     true,  "System"),
-                T("Windows Update Cache", @"C:\Windows\SoftwareDistribution\Download",              "Use Windows Settings → Storage → Temporary files",   false, "System", CleanupPrivilege.Administrator),
-                T("Prefetch Files",       @"C:\Windows\Prefetch",                                   "Managed by Windows; direct cleanup is unavailable",  false, "System", CleanupPrivilege.Administrator),
-                T("Delivery Opt Cache",   @"C:\Windows\SoftwareDistribution\DeliveryOptimization",  "Use Windows Delivery Optimization settings",         false, "System", CleanupPrivilege.Administrator),
-                T("Windows Error Reports",Path.Combine(local,"Microsoft","Windows","WER"),          "Crash dump reports",                                 true,  "System"),
-                T("CBS Logs",             @"C:\Windows\Logs\CBS",                                   "Protected servicing diagnostics; direct cleanup unavailable", false, "System", CleanupPrivilege.Administrator),
-                T("Minidump Files",       @"C:\Windows\Minidump",                                   "Protected crash diagnostics; direct cleanup unavailable", false, "System", CleanupPrivilege.Administrator),
-                T("Thumbnail Cache",      Path.Combine(local,"Microsoft","Windows","Explorer"),     "Explorer thumbcache files — rebuilt automatically",  true,  "System"),
-                T("Recycle Bin",          @"C:\$Recycle.Bin",                                       "Use the dedicated Empty Recycle Bin option",         false, "System", CleanupPrivilege.Administrator),
-                T("Hibernation File",     @"C:\hiberfil.sys",                                       "Run powercfg -h off to remove (~RAM size freed)",    false, "System"),
-                T("WinSxS Store",         @"C:\Windows\WinSxS",                                    "Run: DISM /Online /Cleanup-Image /StartComponentCleanup", false, "System"),
-                // Browsers
-                T("Chrome Cache",         Path.Combine(local,"Google","Chrome","User Data","Default","Cache"),       "Chrome web cache",         true, "Browsers"),
-                T("Chrome Code Cache",    Path.Combine(local,"Google","Chrome","User Data","Default","Code Cache"),  "Chrome JS compiled cache", true, "Browsers"),
-                T("Chrome GPU Cache",     Path.Combine(local,"Google","Chrome","User Data","Default","GPUCache"),    "Chrome GPU shader cache",  true, "Browsers"),
-                T("Chrome Crashpad",      Path.Combine(local,"Google","Chrome","User Data","Crashpad"),              "Chrome crash reports",     true, "Browsers"),
-                T("Edge Cache",           Path.Combine(local,"Microsoft","Edge","User Data","Default","Cache"),      "Edge web cache",           true, "Browsers"),
-                T("Edge Code Cache",      Path.Combine(local,"Microsoft","Edge","User Data","Default","Code Cache"), "Edge JS compiled cache",   true, "Browsers"),
-                T("Firefox Profiles",     Path.Combine(roaming,"Mozilla","Firefox","Profiles"),                      "Contains profile data; review manually",false, "Browsers"),
-                T("Brave Cache",          Path.Combine(local,"BraveSoftware","Brave-Browser","User Data","Default","Cache"), "Brave browser cache", true, "Browsers"),
-                T("IE/Legacy Cache",      Path.Combine(local,"Microsoft","Windows","INetCache"),                     "Old IE cache",             true, "Browsers"),
-                // Developer
-                T("npm Cache",            Path.Combine(roaming,"npm-cache"),                         "Node package manager cache",    true,  "Developer"),
-                T("yarn Cache",           Path.Combine(local,"Yarn","Cache"),                        "Yarn package cache",            true,  "Developer"),
-                T("pip Cache",            Path.Combine(local,"pip","Cache"),                         "Python pip cache",              true,  "Developer"),
-                T("Gradle Data",          Path.Combine(local,"Gradle"),                              "May contain more than caches",  false, "Developer"),
-                T("Maven Repository",     Path.Combine(u,".m2"),                                     "Local repository and settings", false, "Developer"),
-                T("NuGet Cache",          Path.Combine(local,"NuGet","Cache"),                       "NuGet package cache",           true,  "Developer"),
-                T(".cargo Registry",      Path.Combine(u,".cargo","registry"),                       "Rust Cargo registry",           true,  "Developer"),
-                T("JetBrains Data",       Path.Combine(local,"JetBrains"),                           "May contain IDE configuration", false, "Developer"),
-                T("Visual Studio Data",   Path.Combine(local,"Microsoft","VisualStudio"),            "May contain IDE configuration", false, "Developer"),
-                T("Android SDK",          Path.Combine(local,"Android","Sdk"),                       "Remove unused API levels",      false, "Developer"),
-                // Apps
-                T("Discord Cache",        Path.Combine(roaming,"discord","Cache"),                   "Discord media cache",           true, "Apps"),
-                T("Discord Code Cache",   Path.Combine(roaming,"discord","Code Cache"),              "Discord JS cache",              true, "Apps"),
-                T("Teams Cache",          Path.Combine(roaming,"Microsoft","Teams","Cache"),         "Teams media cache",             true, "Apps"),
-                T("Teams SW Cache",       Path.Combine(roaming,"Microsoft","Teams","Service Worker","CacheStorage"), "Teams service worker cache", true, "Apps"),
-                T("Slack Cache",          Path.Combine(roaming,"Slack","Cache"),                     "Slack media cache",             true, "Apps"),
-                T("Zoom Data",            Path.Combine(roaming,"Zoom","data"),                       "May contain application data",  false,"Apps"),
-                T("Spotify Data",         Path.Combine(local,"Spotify","Data"),                      "May contain offline media",     false,"Apps"),
-                T("Steam AppCache",       @"C:\Program Files (x86)\Steam\appcache",                 "Protected application directory; use Steam",         false, "Apps", CleanupPrivilege.Administrator),
-                T("Steam Games",          @"C:\Program Files (x86)\Steam\steamapps\common",         "Installed Steam games",         false,"Apps"),
-                T("Epic Launcher Cache",  Path.Combine(local,"EpicGamesLauncher","Saved","webcache"),"Epic web cache",               true, "Apps"),
-                T("Battle.net Cache",     Path.Combine(local,"Battle.net","Cache"),                  "Battle.net launcher cache",     true, "Apps"),
-                T("Adobe Data",           Path.Combine(local,"Adobe"),                               "May contain application data",  false,"Apps"),
-                T("NVIDIA DXCache",       Path.Combine(local,"NVIDIA","DXCache"),                    "NVIDIA shader cache",           true, "Apps"),
-                T("AMD DXCache",          Path.Combine(local,"AMD","DXCache"),                       "AMD shader cache",              true, "Apps"),
-                T("Office Data",          Path.Combine(local,"Microsoft","Office"),                  "May contain document/app data", false,"Apps"),
-                // User Data
-                T("Downloads Folder",     Path.Combine(u,"Downloads"),                              "Your downloads — review first!", false,"User Data"),
-                T("Desktop Files",        Path.Combine(u,"Desktop"),                                "Files on your desktop",         false,"User Data"),
-                T("Videos Folder",        Path.Combine(u,"Videos"),                                 "Recorded/downloaded videos",    false,"User Data"),
-                T("OneDrive Local",       Path.Combine(u,"OneDrive"),                               "Move to cloud-only first",      false,"User Data"),
+                CleanTempFiles = true,
+                CleanCache = true,
+                CleanDevTools = true,
+                CleanGaming = true,
+                CleanSystemDumps = true
             };
+
+            return new CleanerService().CreateCleanupPlan(config).Targets
+                .Select(target => new JunkTarget
+                {
+                    Label = target.DisplayName,
+                    FullPath = target.Path,
+                    Note = target.Reason,
+                    Safe = target.Risk == CleanupRisk.Low,
+                    Category = target.Category,
+                    IsFile = target.Type == CleanupTargetType.File,
+                    RequiredPrivilege = target.RequiredPrivilege
+                })
+                .ToList();
         }
     }
 }

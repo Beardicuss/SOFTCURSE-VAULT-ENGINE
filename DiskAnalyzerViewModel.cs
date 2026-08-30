@@ -108,7 +108,8 @@ namespace SoftcurseVaultCleaner
         public string LargeCountStr  { get => _largeCountStr;  set { _largeCountStr  = value; RaisePC(nameof(LargeCountStr));  } }
         public string ProgCountStr   { get => _progCountStr;   set { _progCountStr   = value; RaisePC(nameof(ProgCountStr));   } }
 
-        public string[] JunkCategories { get; } = { "All", "System", "Browsers", "Developer", "Apps", "User Data" };
+        public string[] JunkCategories { get; } =
+            { "All", "Temporary", "System", "Browsers", "Developer", "Applications", "Drivers", "Diagnostics" };
 
         // ── Commands ───────────────────────────────────────────────────────
         public ICommand ScanCommand          { get; }
@@ -250,7 +251,7 @@ namespace SoftcurseVaultCleaner
                     LargeCountStr  = $"{result.LargeFiles.Count} files";
                     ProgCountStr   = $"{result.Programs.Count} apps";
 
-                    Suggestions = DiskAnalyzerService.BuildSuggestions(result);
+                    Suggestions = DiskAnalyzerService.BuildSuggestions(result, SelectedDrive);
                     RefreshDriveInfo();
                     Status = $"Scan complete ✓ — {result.JunkTargets.Count} junk locations | {result.LargeFiles.Count} large files | {result.Programs.Count} programs";
                 });
@@ -337,7 +338,7 @@ namespace SoftcurseVaultCleaner
                     UpdateJunkSelectedSize();
                     RefreshDriveInfo();
 
-                    string summary = $"Deleted {result.DeletedCount} item(s) — freed {result.BytesFreedStr}";
+                    string summary = $"Moved {result.DeletedCount} item(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0)
                         summary += $" ({result.FailedCount} failed — may need Admin rights)";
                     Status = summary;
@@ -376,7 +377,7 @@ namespace SoftcurseVaultCleaner
                     UpdateLargeSelectedSize();
                     RefreshDriveInfo();
 
-                    string summary = $"Deleted {result.DeletedCount} file(s) — freed {result.BytesFreedStr}";
+                    string summary = $"Moved {result.DeletedCount} file(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0) summary += $" ({result.FailedCount} failed)";
                     Status = summary;
                     MessageBox.Show(summary, "Deletion Complete", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -413,7 +414,7 @@ namespace SoftcurseVaultCleaner
                     UpdateDupeSelectedSize();
                     RefreshDriveInfo();
 
-                    string summary = $"Deleted {result.DeletedCount} duplicate(s) — freed {result.BytesFreedStr}";
+                    string summary = $"Moved {result.DeletedCount} duplicate(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0) summary += $" ({result.FailedCount} failed)";
                     Status = summary;
                     MessageBox.Show(summary, "Deletion Complete", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -573,7 +574,7 @@ namespace SoftcurseVaultCleaner
                     UpdateJunkSelectedSize();
                     RefreshDriveInfo();
 
-                    string summary = $"Deleted {result.DeletedCount} item(s) — freed {result.BytesFreedStr}";
+                    string summary = $"Moved {result.DeletedCount} item(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0)
                         summary += $" ({result.FailedCount} failed — may need Admin rights)";
                     Status = summary;

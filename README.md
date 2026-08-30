@@ -35,7 +35,7 @@ Standard-user cleanup subsystem that previews narrowly scoped, recoverable file 
 - **Python PIP Cache Cleanup**
 - **Per-user Graphics Driver Cache Cleanup** (NVIDIA, AMD, Intel)
 - **Unreal Engine Derived Data Cache Cleanup**
-- **Android SDK System Image Cleanup**
+- **Android Build Cache Cleanup** (installed SDK platforms and emulator images are retained)
 - **DISM Component Store Cleanup** through a fixed, separately elevated helper (no ResetBase)
 - **Thumbnail Cache Cleanup**
 
@@ -45,7 +45,7 @@ Standard-user cleanup subsystem that previews narrowly scoped, recoverable file 
 - **Protected-Path Validation** — Reject roots, protected folders, junctions, and mount points
 - **Recoverable Deletion** — Filesystem targets are sent to the Recycle Bin
 - **Detailed Progress & UI Feedback**
-- **Full Logging Pipeline** (`D:\VaultHunterLogs`)
+- **Full Logging Pipeline** (`%LOCALAPPDATA%\SoftcurseVaultCleaner\Logs`)
 - **Async operations** (UI never freezes)
 
 ---
@@ -197,14 +197,7 @@ Security reports and local-data handling are documented in [SECURITY.md](SECURIT
 All operations are logged:
 
 ```
-D:\VaultHunterLogs\vault-cleaner-YYYYMMDD-HHmmss.log
-D:\VaultHunterLogs\widir-YYYYMMDD-HHmmss.log
-```
-
-Error logs:
-
-```
-D:\VaultHunterLogs\errors\*.log
+%LOCALAPPDATA%\SoftcurseVaultCleaner\Logs\cleanup-YYYYMMDD-HHmmss.log
 ```
 
 ---
@@ -241,7 +234,7 @@ VaultEngine/
 
 # 🧬 Version History
 
-### **v3.0 (Current — Softcurse Vault Engine)**
+### **v1.0.0 (Current development version — Softcurse Vault Cleaner)**
 
 * Renamed project to Vault Engine
 * Added full WinDir Disk Analyzer subsystem

@@ -34,7 +34,7 @@ namespace SoftcurseVaultCleaner
 
     public class RegistryIssueItem : INotifyPropertyChanged
     {
-        private bool _isChecked = true; // Auto-check for deletion
+        private bool _isChecked;
         public bool IsChecked
         {
             get => _isChecked;
@@ -69,20 +69,6 @@ namespace SoftcurseVaultCleaner
         {
             get => _isScanning;
             set { if (_isScanning != value) { _isScanning = value; OnPropertyChanged(nameof(IsScanning)); } }
-        }
-
-        // AutoClean properties synced with AppSettings
-        public bool EnableAutoClean
-        {
-            get => AppSettings.Instance.DefaultEnableAutoClean;
-            set 
-            { 
-                if (AppSettings.Instance.DefaultEnableAutoClean != value) 
-                { 
-                    AppSettings.Instance.DefaultEnableAutoClean = value; 
-                    OnPropertyChanged(nameof(EnableAutoClean)); 
-                } 
-            }
         }
 
         // Commands

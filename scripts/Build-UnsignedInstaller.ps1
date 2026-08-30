@@ -12,7 +12,7 @@ $projectFile = Join-Path $projectRoot 'Win11 Auto-Clean.csproj'
 $helperProject = Join-Path $projectRoot 'PrivilegedMaintenanceHelper\PrivilegedMaintenanceHelper.csproj'
 $installerScript = Join-Path $projectRoot 'installer\SoftcurseVaultCleaner.iss'
 $artifactsRoot = Join-Path $projectRoot 'artifacts'
-$stagingRoot = Join-Path $artifactsRoot ('unsigned-staging-' + [Guid]::NewGuid().ToString('N'))
+$stagingRoot = Join-Path $artifactsRoot ('development-staging-' + [Guid]::NewGuid().ToString('N'))
 $appStage = Join-Path $stagingRoot 'app'
 $helperStage = Join-Path $stagingRoot 'helper'
 $installerStage = Join-Path $stagingRoot 'installer'
@@ -41,7 +41,7 @@ try {
     $version = [string]$props.Project.PropertyGroup.VersionPrefix
     if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid release version '$version'." }
 
-    $finalRoot = Join-Path $artifactsRoot "unsigned-v$version"
+    $finalRoot = Join-Path $artifactsRoot "development-v$version"
     Assert-UnderArtifacts $finalRoot
     if (Test-Path -LiteralPath $finalRoot) {
         throw "Unsigned output already exists: $finalRoot"
@@ -87,11 +87,11 @@ try {
         "/DPublishSource=$appStage",
         "/DReleaseOutputDir=$installerStage",
         "/DMyAppVersion=$version",
-        '/DReleaseChannelSuffix=_UNSIGNED',
+        '/DReleaseChannelSuffix=',
         $installerScript)
 
-    $installers = @(Get-ChildItem -LiteralPath $installerStage -Filter '*_UNSIGNED.exe' -File)
-    if ($installers.Count -ne 1) { throw "Expected one unsigned installer, found $($installers.Count)." }
+    $installers = @(Get-ChildItem -LiteralPath $installerStage -Filter 'SoftcurseVaultCleaner_Setup_v*.exe' -File)
+    if ($installers.Count -ne 1) { throw "Expected one development installer, found $($installers.Count)." }
     $installer = $installers[0]
     $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
     if ($signature.Status -ne 'NotSigned') {
@@ -101,15 +101,14 @@ try {
     Copy-Item -LiteralPath $sbomPath -Destination (
         Join-Path $installerStage "SoftcurseVaultCleaner_v$version.spdx.json")
     @(
-        'UNSIGNED RELEASE CANDIDATE'
+        'DEVELOPMENT BUILD'
         ''
-        'This installer is not Authenticode signed. Windows will identify the publisher as unknown.'
-        'Use it for owner testing or publish it explicitly as a GitHub pre-release.'
-        'Do not describe it as a signed production release.'
+        'Code signing is postponed during development. Windows may identify the publisher as unknown.'
+        'This build is intended for application testing before the first stable release.'
         ''
         'Product: https://softcursesystems.pages.dev/lab/vault'
         'Source: https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE'
-    ) | Set-Content -LiteralPath (Join-Path $installerStage 'UNSIGNED-README.txt') -Encoding utf8
+    ) | Set-Content -LiteralPath (Join-Path $installerStage 'DEVELOPMENT-README.txt') -Encoding utf8
 
     Get-ChildItem -LiteralPath $installerStage -File | ForEach-Object {
         '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash, $_.Name

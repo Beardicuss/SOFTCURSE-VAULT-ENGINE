@@ -29,7 +29,8 @@ namespace SoftcurseVaultCleaner
                         Arguments = "component-cleanup",
                         WorkingDirectory = AppContext.BaseDirectory,
                         UseShellExecute = true,
-                        Verb = "runas"
+                        Verb = "runas",
+                        WindowStyle = ProcessWindowStyle.Hidden
                     }
                 };
 

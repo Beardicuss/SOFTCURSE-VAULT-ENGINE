@@ -24,7 +24,7 @@ The release script rejects a dirty worktree, a mismatched tag, missing signing m
 
 ## Unsigned owner-test candidate
 
-`scripts/Build-UnsignedInstaller.ps1` and the separate **Build unsigned installer candidate** workflow may produce an explicitly named `_UNSIGNED.exe` for owner testing or a clearly marked GitHub pre-release. This path does not create update metadata and cannot publish a production release. Windows will identify its publisher as unknown. It must never be renamed or represented as a signed production installer.
+`scripts/Build-UnsignedInstaller.ps1` and the separate **Build development installer** workflow produce a normally named development installer for owner testing. This path does not create production update metadata or publish a production release. Until code signing is provisioned, Windows may identify its publisher as unknown.
 
 ## Update verification model
 
