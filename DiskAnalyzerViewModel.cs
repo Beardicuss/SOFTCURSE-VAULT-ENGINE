@@ -59,6 +59,7 @@ namespace SoftcurseVaultCleaner
             {
                 _isScanning = value; RaisePC(nameof(IsScanning)); RaisePC(nameof(IsNotScanning));
                 Raise(ScanCommand); Raise(CancelScanCommand); Raise(DupScanCommand);
+                Raise(RefreshDrivesCommand);
                 Raise(DeleteJunkCommand); Raise(DeleteLargeCommand); Raise(DeleteDupesCommand); Raise(DeleteSuggestionsCommand);
             }
         }
@@ -95,8 +96,15 @@ namespace SoftcurseVaultCleaner
         public string SelectedDrive
         {
             get => _selectedDrive;
-            set { _selectedDrive = value; RaisePC(nameof(SelectedDrive)); RefreshDriveInfo(); }
+            set
+            {
+                _selectedDrive = value;
+                RaisePC(nameof(SelectedDrive));
+                RaisePC(nameof(OverviewTitle));
+                RefreshDriveInfo();
+            }
         }
+        public string OverviewTitle => $"Top-Level {SelectedDrive} Folder Sizes (read-only)";
 
         public string JunkSelectedStr  { get => _junkSelectedStr;  set { _junkSelectedStr  = value; RaisePC(nameof(JunkSelectedStr));  } }
         public string LargeSelectedStr { get => _largeSelectedStr; set { _largeSelectedStr = value; RaisePC(nameof(LargeSelectedStr)); } }
@@ -115,6 +123,7 @@ namespace SoftcurseVaultCleaner
         public ICommand ScanCommand          { get; }
         public ICommand CancelScanCommand    { get; }
         public ICommand DupScanCommand       { get; }
+        public ICommand RefreshDrivesCommand { get; }
 
         // Junk selection
         public ICommand SelectAllJunkCommand   { get; }
@@ -161,6 +170,7 @@ namespace SoftcurseVaultCleaner
             ScanCommand       = new RelayCommand(StartDeepScan,   () => !IsScanning);
             CancelScanCommand = new RelayCommand(CancelScan,       () =>  IsScanning);
             DupScanCommand    = new RelayCommand(StartDupScan,    () => !IsScanning);
+            RefreshDrivesCommand = new RelayCommand(PopulateAvailableDrives, () => !IsScanning);
 
             SelectAllJunkCommand   = new RelayCommand(() => SetJunkChecked(JunkFiltered, true));
             SelectSafeJunkCommand  = new RelayCommand(() => SetJunkChecked(JunkFiltered.Where(j => j.Safe), true));
@@ -485,18 +495,25 @@ namespace SoftcurseVaultCleaner
 
         private void PopulateAvailableDrives()
         {
+            string previousSelection = SelectedDrive;
             AvailableDrives.Clear();
             foreach (var drive in System.IO.DriveInfo.GetDrives())
             {
                 try
                 {
-                    if (drive.IsReady)
+                    if (drive.IsReady &&
+                        (drive.DriveType == DriveType.Fixed || drive.DriveType == DriveType.Removable))
                         AvailableDrives.Add(drive.RootDirectory.FullName);
                 }
                 catch { }
             }
             if (AvailableDrives.Count > 0)
-                SelectedDrive = AvailableDrives.Contains("C:\\") ? "C:\\" : AvailableDrives[0];
+            {
+                string systemDrive = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
+                SelectedDrive = AvailableDrives.Contains(previousSelection)
+                    ? previousSelection
+                    : AvailableDrives.Contains(systemDrive) ? systemDrive : AvailableDrives[0];
+            }
         }
 
         private void ExecuteSendJunkToVault()
