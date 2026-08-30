@@ -1,16 +1,21 @@
-```
-███████╗ ██████╗ ███████╗████████╗ ██████╗██╗   ██╗██████╗ ███████╗███████╗
-██╔════╝██╔═══██╗██╔════╝╚══██╔══╝██╔════╝██║   ██║██╔══██╗██╔════╝██╔════╝
-███████╗██║   ██║█████╗     ██║   ██║     ██║   ██║██████╔╝███████╗█████╗  
-╚════██║██║   ██║██╔══╝     ██║   ██║     ██║   ██║██╔══██╗╚════██║██╔══╝  
-███████║╚██████╔╝██║        ██║   ╚██████╗╚██████╔╝██║  ██║███████║███████╗
-╚══════╝ ╚═════╝ ╚═╝        ╚═╝    ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝
-          S O F T C U R S E   V A U L T   E N G I N E
-               The Mechanism Beneath the System
-```
+<p align="center">
+  <a href="https://softcursesystems.pages.dev/lab/vault">
+    <img src="Resources/vault.png" alt="Softcurse Vault Cleaner" width="360">
+  </a>
+</p>
 
- 
-*A multi-module Windows optimization suite forged in the depths of the system vaults.*
+<h1 align="center">Softcurse Vault Cleaner</h1>
+
+<p align="center">
+  A Windows cleanup and disk-analysis application created by
+  <a href="https://softcursesystems.pages.dev">Softcurse Systems</a>.
+</p>
+
+<p align="center">
+  <a href="https://softcursesystems.pages.dev/lab/vault">Application page</a> ·
+  <a href="https://softcursesystems.pages.dev">Softcurse Systems</a> ·
+  <a href="LICENSE">Apache-2.0 license</a>
+</p>
 
 Softcurse Vault Engine is an advanced WPF-based toolkit designed to purge, analyze, and optimize Windows environments.  
 Forged with dark neon aesthetics and powered by modular architecture, the Engine provides deep cleanup, disk analysis, and system-level utilities with precision and style.

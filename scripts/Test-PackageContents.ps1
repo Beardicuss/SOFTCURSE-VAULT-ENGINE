@@ -14,7 +14,11 @@ $requiredFiles = @(
     'Win11 Auto-Clean.exe',
     'Win11 Auto-Clean.dll',
     'Softcurse.PrivilegedMaintenanceHelper.exe',
-    'vault.ico'
+    'vault.ico',
+    'LICENSE',
+    'NOTICE',
+    'PRIVACY.md',
+    'SECURITY.md'
 )
 foreach ($name in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)) {

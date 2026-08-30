@@ -4,11 +4,16 @@
 #ifndef ReleaseOutputDir
   #define ReleaseOutputDir "..\output"
 #endif
+#ifndef ReleaseChannelSuffix
+  #define ReleaseChannelSuffix ""
+#endif
 
 #define MyAppName "Softcurse Vault Cleaner"
 #define MyAppVersion GetFileVersion(PublishSource + "\Win11 Auto-Clean.exe")
-#define MyAppPublisher "Softcurse"
-#define MyAppURL "https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE"
+#define MyAppPublisher "Softcurse Systems"
+#define MyAppURL "https://softcursesystems.pages.dev"
+#define MyAppSupportURL "https://softcursesystems.pages.dev/lab/vault"
+#define MyAppUpdatesURL "https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE/releases"
 #define MyAppExeName "Win11 Auto-Clean.exe"
 
 [Setup]
@@ -20,14 +25,15 @@ VersionInfoVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppSupportURL={#MyAppSupportURL}
+AppUpdatesURL={#MyAppUpdatesURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir={#ReleaseOutputDir}
-OutputBaseFilename=SoftcurseVaultCleaner_Setup_v{#MyAppVersion}
+OutputBaseFilename=SoftcurseVaultCleaner_Setup_v{#MyAppVersion}{#ReleaseChannelSuffix}
 SetupIconFile=..\Resources\vault.ico
+LicenseFile=..\LICENSE
 UninstallDisplayIcon={app}\vault.ico
 Compression=lzma2/ultra64
 SolidCompression=yes

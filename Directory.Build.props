@@ -1,9 +1,9 @@
 <Project>
   <PropertyGroup>
     <Product>Softcurse Vault Cleaner</Product>
-    <Company>Softcurse</Company>
-    <Authors>Softcurse</Authors>
-    <Copyright>Copyright © 2026 Softcurse</Copyright>
+    <Company>Softcurse Systems</Company>
+    <Authors>Softcurse Systems</Authors>
+    <Copyright>Copyright © 2026 Softcurse Systems</Copyright>
     <VersionPrefix>3.0.0</VersionPrefix>
     <Version>$(VersionPrefix)</Version>
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>

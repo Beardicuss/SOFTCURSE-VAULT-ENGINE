@@ -22,6 +22,10 @@ For the current PFX path, the release script verifies that the supplied certific
 
 The release script rejects a dirty worktree, a mismatched tag, missing signing material, mismatched trust anchors, unsigned output, timestamp verification failures, browser-profile data, debug symbols, missing SBOM output, or an existing release directory.
 
+## Unsigned owner-test candidate
+
+`scripts/Build-UnsignedInstaller.ps1` and the separate **Build unsigned installer candidate** workflow may produce an explicitly named `_UNSIGNED.exe` for owner testing or a clearly marked GitHub pre-release. This path does not create update metadata and cannot publish a production release. Windows will identify its publisher as unknown. It must never be renamed or represented as a signed production installer.
+
 ## Update verification model
 
 The application fetches metadata only from the fixed GitHub release endpoint. It verifies the RSA signature before parsing the manifest, rejects rollback versions and non-allowlisted download locations, enforces signed size and SHA-256 values while streaming to a temporary file, then requires a valid Windows Authenticode chain and the pinned signer certificate hash. The installer is not launched without explicit user confirmation, and the existing installation remains in place until the installer completes.
