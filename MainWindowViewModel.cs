@@ -435,7 +435,6 @@ namespace SoftcurseVaultCleaner
             var operations = new System.Collections.Generic.List<string>();
             if (config.CleanRecycleBin) operations.Add("Empty Recycle Bin (not recoverable)");
             if (config.CleanDNS) operations.Add("Command: flush the current DNS resolver cache");
-            if (config.CleanExtreme) operations.Add("Explorer privacy data: recent items and icon cache (recoverable)");
             if (config.DeepScanMode)
                 operations.Add("Elevated helper: supported DISM component cleanup without ResetBase (UAC required)");
 
@@ -454,29 +453,41 @@ namespace SoftcurseVaultCleaner
 
             var allowedFiles = preview.Where(item => item.IsAllowed).ToList();
             var blockedFiles = preview.Where(item => !item.IsAllowed).ToList();
-            if (operations.Count == 0 && allowedFiles.Count == 0 && blockedFiles.Count == 0)
+            if (operations.Count == 0 && allowedFiles.Count == 0)
             {
-                Status = "No cleanup operations selected.";
+                Status = blockedFiles.Count > 0
+                    ? "All discovered targets were skipped by the safety policy."
+                    : "No cleanup operations selected.";
                 return false;
             }
 
             long estimatedBytes = allowedFiles.Sum(item => item.EstimatedBytes);
-            string message = $"FILESYSTEM PLAN: {allowedFiles.Count} allowed target(s), approximately {SizeFormatter.Format(estimatedBytes)}\n\n" +
-                             string.Join("\n", allowedFiles.Take(20).Select(item =>
-                                 $"• [{item.Target.Risk}] {item.Target.DisplayName}\n  {item.CanonicalPath}")) +
-                             (allowedFiles.Count > 20 ? $"\n• … and {allowedFiles.Count - 20} more target(s)" : "");
+            var categorySummaries = allowedFiles
+                .GroupBy(item => item.Target.Category)
+                .OrderByDescending(group => group.Sum(item => item.EstimatedBytes))
+                .Select(group =>
+                    $"• {group.Key}: {group.Count()} target(s), {SizeFormatter.Format(group.Sum(item => item.EstimatedBytes))}");
+            var largestTargets = allowedFiles
+                .OrderByDescending(item => item.EstimatedBytes)
+                .Take(8)
+                .Select(item => $"• {item.Target.DisplayName}: {SizeFormatter.Format(item.EstimatedBytes)}\n  {item.CanonicalPath}");
+
+            string message = $"CLEANUP SUMMARY\n\n" +
+                             $"{allowedFiles.Count} approved target(s), approximately {SizeFormatter.Format(estimatedBytes)}";
+            if (allowedFiles.Count > 0)
+                message += "\n\nBY CATEGORY:\n" + string.Join("\n", categorySummaries) +
+                           "\n\nLARGEST TARGETS:\n" + string.Join("\n", largestTargets);
 
             if (blockedFiles.Count > 0)
-                message += $"\n\nBLOCKED BY SAFETY POLICY: {blockedFiles.Count}\n" +
-                           string.Join("\n", blockedFiles.Take(8).Select(item =>
-                               $"• {item.Target.DisplayName}: {item.ValidationMessage}"));
+                message += $"\n\nSKIPPED AUTOMATICALLY: {blockedFiles.Count} target(s) " +
+                           "were unavailable or contained Windows links/junctions. They will not be touched.";
 
             if (operations.Count > 0)
-                message += "\n\nNON-FILESYSTEM OPERATIONS:\n" +
+                message += "\n\nADDITIONAL OPERATIONS:\n" +
                            string.Join("\n", operations.Select(operation => $"• {operation}"));
 
-            message += "\n\nAllowed filesystem targets are forced through the Recycle Bin. " +
-                       "Commands and settings explicitly marked not recoverable are outside that protection.\n\nContinue?";
+            message += "\n\nApproved files will be moved to the Recycle Bin. " +
+                       "Emptying the Recycle Bin and system commands cannot be undone.\n\nContinue?";
             return System.Windows.MessageBox.Show(
                 message,
                 "Cleanup Preview",

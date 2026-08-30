@@ -515,15 +515,9 @@
                                         <CheckBox x:Name="chkCache" Content="Clear application cache" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanCache}"/>
-                                        <CheckBox x:Name="chkLogs" Content="Windows Event Log clearing — removed for safety"
-                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="False" IsEnabled="False"/>
                                         <CheckBox x:Name="chkRecycleBin" Content="Empty recycle bin" 
                                                   Style="{StaticResource TechCheckBox}" Margin="0,5" 
                                                   IsChecked="{Binding CleanRecycleBin}"/>
-                                        <CheckBox x:Name="chkPrefetch" Content="Windows Prefetch clearing — removed for safety"
-                                                  Style="{StaticResource TechCheckBox}" Margin="0,5" 
-                                                  IsChecked="False" IsEnabled="False"/>
 
                                         <TextBlock Text="Extended cleanup:" Foreground="#CCCCCC" 
                                                    FontFamily="Consolas" FontSize="11" Margin="0,15,0,5"/>
@@ -1314,12 +1308,8 @@
                               IsChecked="{Binding Settings.DefaultCleanTemp}"/>
                     <CheckBox Content="Clear application cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanCache}"/>
-                    <CheckBox Content="Windows Event Log clearing — removed for safety" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="False" IsEnabled="False"/>
                     <CheckBox Content="Empty recycle bin" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanRecycleBin}"/>
-                    <CheckBox Content="Windows Prefetch clearing — removed for safety" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="False" IsEnabled="False"/>
                     <CheckBox Content="Recoverable deletion (Recycle Bin — enforced)" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="True" IsEnabled="False"/>
                 </StackPanel>
