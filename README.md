@@ -13,130 +13,78 @@
 
 <p align="center">
   <a href="https://softcursesystems.pages.dev/lab/vault">Application page</a> ·
-  <a href="https://softcursesystems.pages.dev">Softcurse Systems</a> ·
+  <a href="https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE/releases">Downloads</a> ·
   <a href="LICENSE">Apache-2.0 license</a>
 </p>
 
-Softcurse Vault Engine is an advanced WPF-based toolkit designed to purge, analyze, and optimize Windows environments.  
-Forged with dark neon aesthetics and powered by modular architecture, the Engine provides deep cleanup, disk analysis, and system-level utilities with precision and style.
+Softcurse Vault Cleaner is a dark-neon WPF utility for reviewing and reclaiming storage on Windows. Version `1.0.0` combines a safety-focused cleanup engine, multi-drive disk analysis, duplicate and large-file discovery, and read-only startup and registry inspection.
 
----
+## Current features
 
-# 🌑 Core Modules
+### Vault Cleaner
 
-## 1. Vault Cleaner
-Standard-user cleanup subsystem that previews narrowly scoped, recoverable file operations.
+- Cleans selected user temporary files, browser caches, thumbnail caches, developer caches, gaming and communications caches, and user crash reports.
+- Supports approved custom folders after protected-path validation.
+- Shows a categorized confirmation preview before making changes.
+- Blocks drive roots, Windows and application directories, unsafe profile roots, links, junctions, and mount points.
+- Sends allowed filesystem targets to the Recycle Bin.
+- Clearly separates irreversible operations such as emptying the Recycle Bin and flushing the DNS resolver cache.
+- Offers optional Windows component cleanup through a fixed, separately elevated helper. It does not use `ResetBase` or delete the Windows Installer cache, shadow copies, or pagefile configuration.
+- Keeps a persistent operation log in `%LOCALAPPDATA%\SoftcurseVaultCleaner\Logs`.
 
-### Features
-- **Recycle Bin Purge**
-- **User TEMP Cleanup**
-- **Browser Cache Removal** (Chrome, Edge, Firefox, Brave)
-- **UWP Temporary-State Cleanup**
-- **Python PIP Cache Cleanup**
-- **Per-user Graphics Driver Cache Cleanup** (NVIDIA, AMD, Intel)
-- **Unreal Engine Derived Data Cache Cleanup**
-- **Android Build Cache Cleanup** (installed SDK platforms and emulator images are retained)
-- **DISM Component Store Cleanup** through a fixed, separately elevated helper (no ResetBase)
-- **Thumbnail Cache Cleanup**
+### Disk Analyzer
 
-### Advanced Capabilities
-- **Quick Scan** — Estimate recoverable space
-- **Exact Target Preview** — Review paths, risk, privilege, and estimated size before execution
-- **Protected-Path Validation** — Reject roots, protected folders, junctions, and mount points
-- **Recoverable Deletion** — Filesystem targets are sent to the Recycle Bin
-- **Detailed Progress & UI Feedback**
-- **Full Logging Pipeline** (`%LOCALAPPDATA%\SoftcurseVaultCleaner\Logs`)
-- **Async operations** (UI never freezes)
+- Detects ready local fixed and removable drives.
+- Lets the user choose the disk to analyze and refresh the drive list.
+- Defaults to the Windows system drive without assuming it is `C:`.
+- Provides disk overview, cleanup suggestions, large-file discovery, exact duplicate detection, and report export.
+- Supports cancellation and tolerates inaccessible folders without stopping the entire scan.
 
----
+### Startup Manager
 
-## 2. WinDir Disk Analyzer
-A standalone subsystem for deep disk inspection, visual analysis, and file forensics.
+- Lists programs configured to start when the user signs in.
+- Reports inspected registry entries whose referenced executable path is missing.
+- Is currently inspection-only. Delete and repair controls remain disabled until backup, confirmation, and rollback are implemented.
 
-### Key Features
-- **Full filesystem tree scan**
-- **Top Files Explorer**
-- **Top Directories Analysis**
-- **Extension-Based Category Mapping**
-- **Duplicate Finder**
-- **Large File Hunter**
-- **Aged File Analysis**
-- **Real-time scan progress with circular neon indicator**
-- **Detailed recommendations output**
-- **Standalone HTML report generation**
+### Settings and help
 
-WinDir opens as an independent vault window while inheriting the main UI theme.
+- Saves general, cleanup-default, and log-appearance preferences per user.
+- Exposes defaults for every current cleaner category.
+- Resets immediately to safe, opt-in defaults.
+- Includes an in-app FAQ covering cleanup safety, multi-drive analysis, Startup Manager, recovery, and troubleshooting.
 
----
+## Safety model
 
-# 🔧 Architecture Overview
+- Cleanup choices are opt-in; nothing is preselected on a fresh installation.
+- Every cleanup request is rebuilt as a safety-validated execution plan.
+- Unsafe custom paths fail closed.
+- Filesystem deletion is recoverable through the Recycle Bin unless the user explicitly empties it.
+- The main application runs as a standard user. Only the allowlisted Windows component-cleanup helper requests UAC.
+- Startup and registry scans do not modify the system.
 
-Softcurse Vault Engine is fully modular and future-proof, built with the following principles:
+Always read the preview before confirming a cleanup. Closing browsers and other active applications first improves cache-cleaning results.
 
-### ✔ MVVM Pattern  
-Strict ViewModel-driven architecture ensures clean separation of UI and logic.
+## Requirements
 
-### ✔ Independent Subsystems  
-Cleaner, Disk Analyzer, and future modules run in isolation.
+- 64-bit Windows 10 or Windows 11
+- Approximately 250 MB of available disk space
+- Microsoft Edge WebView2 Evergreen Runtime for animated loaders; core cleanup remains available without it
 
-### ✔ Shared UI Theme  
-A global resource dictionary unifies the application's neon aesthetic across all windows.
+The release is self-contained and does not require a separate .NET installation.
 
-### ✔ Async/Task-Based Engine  
-Long-running operations never block the UI thread.
+## Install
 
-### ✔ Global Logging Layer  
-All modules write into the Softcurse Vault log system.
+Download `SoftcurseVaultCleaner_Setup_v1.0.0.exe` from the [GitHub Releases page](https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE/releases), run it, and launch the app normally as a standard user.
 
----
+If an older package was installed with a higher experimental version number, uninstall it before installing `1.0.0`.
 
-# 🧩 Planned Modules (v3.x Roadmap)
+## Build from source
 
-- **Startup & Services Manager**
-- **Deep Uninstaller**
-- **System Optimizer Panel (Tweaks)**
-- **Network Insight Tool**
-- **Disk Health & SMART Monitor**
-- **Registry Backup & Cleanup**
-- **AppData Forensics Scanner**
+Prerequisites:
 
-Each module is implemented as a standalone vault window using the shared Softcurse theme.
-
----
-
-# 🖥 Requirements
-
-- **64-bit Windows 10 or Windows 11**
-- **Microsoft Edge WebView2 Evergreen Runtime** for animated loaders; cleanup remains usable without it
-- **Standard-user account**; UAC is requested only for optional Windows component cleanup
-- **Approximately 250 MB disk space** for the self-contained x64 release
-
----
-
-# 🛠 Building From Source
-
-### Prerequisites
-1. Install the **.NET 10.0.400 SDK** selected by `global.json`
-2. Install **Visual Studio 2022** (or VS Code with C# extensions)
-
-Package versions are centralized in `Directory.Packages.props`, and locked restore files are committed for repeatable builds.
-
-### Build
-
-```powershell
-cd "Win11 Auto-Clean"
-dotnet restore "Win11 Auto-Clean.sln"
-dotnet build "Win11 Auto-Clean.sln" --configuration Release
-dotnet run --project "Win11 Auto-Clean.csproj"
-```
-
-### Output
-
-```
-bin/Release/net10.0-windows/Win11 Auto-Clean.exe
-```
-
-### Safety verification
+- .NET SDK `10.0.400`, selected by `global.json`
+- Windows x64
+- Inno Setup 6 only when producing the installer locally
 
 ```powershell
 dotnet restore "Win11 Auto-Clean.sln" --locked-mode
@@ -145,116 +93,40 @@ dotnet run --project "SafeCleanupEngine.Tests/SafeCleanupEngine.Tests.csproj" --
 ./scripts/Test-ReleaseIntegrity.ps1
 ```
 
-Routine cleanup testing uses randomized temporary-directory fixtures and injected system-operation fakes in `SafeCleanupEngine.Tests`. The suite exercises path normalization, protected locations, non-`C:` layouts, link/junction rejection, cancellation, partial failures, duplicate detection, recoverable deletion policy, and update verification without touching real system data. GitHub Actions runs it on an ephemeral Windows runner and can also be started manually from the Actions page.
+Package versions are centralized in `Directory.Packages.props`, and committed lock files make restores repeatable. GitHub Actions performs the full Windows build, test, integrity, packaging, and artifact checks.
 
-The fail-closed Hyper-V harness in [tests/vm/README.md](tests/vm/README.md) is optional release-hardening infrastructure only. It is not required for routine development and must never be run against a developer workstation.
+## Testing
 
----
+Automated tests cover path normalization, protected locations, non-`C:` Windows layouts, junction and link rejection, cancellation, partial failures, duplicate detection, recoverable deletion, and update verification. Routine tests operate on randomized temporary fixtures and injected system-operation fakes rather than real Windows data.
 
-# 🔐 Licensing and Releases
+The disposable-VM harness in [tests/vm/README.md](tests/vm/README.md) is optional release-hardening infrastructure. It must never be run against a normal workstation.
 
-All current application features are available without a license key. The former placeholder subscription flow was removed because it did not provide real server-backed entitlement validation.
+## Project layout
 
-Production releases are built only from a clean, exact version tag. The release pipeline creates a self-contained Windows x64 build, signs and timestamps executables and the installer, generates an SBOM and checksums, and publishes provenance. Update metadata is RSA-signed; downloaded installers must also match the signed size and SHA-256 digest, pass Windows Authenticode verification, and match the pinned signer certificate.
-
-The update channel deliberately fails closed until production trust anchors and CI signing secrets are provisioned. See [RELEASE.md](RELEASE.md) for the release procedure.
-
-Security reports and local-data handling are documented in [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md).
-
----
-
-# 🧭 Usage
-
-### Vault Cleaner
-
-1. Launch normally as a standard user
-2. Configure cleanup options
-3. Run **Quick Scan**
-4. Run **Initiate Cleanup Protocol**
-5. Review freed storage and logs
-
-### WinDir Disk Analyzer
-
-1. Open **Disk Analyzer** tab
-2. Select drive or folder
-3. Choose **Quick** or **Deep scan**
-4. Watch neon circular progress indicator
-5. Browse results or export HTML report
-
----
-
-# ⚠ Safety Guidelines
-
-* Always review the exact confirmation preview before cleanup
-* Filesystem cleanup is sent to the Recycle Bin, but emptying the Recycle Bin itself is not reversible
-* Protected system locations and unsafe custom roots are blocked
-* Windows component cleanup is the only operation that requests UAC
-
----
-
-# 📄 Logs
-
-All operations are logged:
-
-```
-%LOCALAPPDATA%\SoftcurseVaultCleaner\Logs\cleanup-YYYYMMDD-HHmmss.log
+```text
+Win11 Auto-Clean/
+├── MainWindow.xaml                 Main WPF interface
+├── MainWindowViewModel.cs          Cleaner and application state
+├── CleanerService.cs               Cleanup target catalog and execution
+├── SafeCleanupEngine.cs            Path policy, preview, and safe deletion
+├── DiskAnalyzerService.cs          Disk scanning and file analysis
+├── DiskAnalyzerViewModel.cs        Multi-drive analyzer UI logic
+├── AutoTuneViewModel.cs            Read-only startup/registry inspection
+├── PrivilegedMaintenanceHelper/    Allowlisted elevated maintenance helper
+├── SafeCleanupEngine.Tests/        Automated safety and regression tests
+├── installer/                      Inno Setup definition
+├── scripts/                        Build and release-integrity tooling
+└── tests/vm/                       Optional disposable-VM harness
 ```
 
----
+## Releases and updates
 
-# 🏗 Project Structure
+The development-installer workflow produces the current `1.0.0` installer and checksum artifact. The production release and automatic-update channel intentionally remain fail-closed until production signing and update trust material are provisioned. See [RELEASE.md](RELEASE.md) for that future release procedure.
 
-```
-VaultEngine/
-├── App.xaml
-├── MainWindow.xaml
-├── MainWindowViewModel.cs
-├── Modules/
-│   ├── Cleaner/
-│   │   ├── CleanerService.cs
-│   │   ├── CleanerView.xaml
-│   ├── WinDir/
-│   │   ├── WinDirWindow.xaml
-│   │   ├── TreeBuilder.cs
-│   │   ├── Aggregator.cs
-│   │   ├── HtmlReportBuilder.cs
-│   │   ├── Models/
-│   │   │   ├── FSNode.cs
-│   │   │   ├── DuplicateItem.cs
-│   │   │   ├── LargeFileItem.cs
-│   │   │   ├── ExtensionStats.cs
-│   ├── Shared/
-│       ├── Controls/
-│       ├── Themes/
-│       ├── Helpers/
-└── VaultEngine.csproj
-```
+Security and local-data handling are documented in [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRIVACY.md).
 
----
+## License
 
-# 🧬 Version History
+Copyright 2026 Softcurse Systems.
 
-### **v1.0.0 (Current development version — Softcurse Vault Cleaner)**
-
-* Renamed project to Vault Engine
-* Added full WinDir Disk Analyzer subsystem
-* Added neon circular progress indicator
-* Added duplicate finder & large file hunter
-* Modular architecture introduced
-* Shared UI theme system added
-
-### **v2.2 (Old — Vault Cleaner)**
-
-* MVVM refactor
-* CleanerService abstraction
-* Quick Scan
-* Improved error handling
-
----
-
-# 💀 Credits
-
-**Softcurse Vault Engine**
-Forged in WPF (.NET 10) using MVVM and dark neon aesthetics.
-
-```
+Licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for attribution information.
