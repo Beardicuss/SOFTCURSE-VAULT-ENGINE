@@ -492,7 +492,8 @@
                                     <ScrollViewer Grid.Row="1" Margin="10,5,10,10" VerticalScrollBarVisibility="Auto"
                                                   HorizontalScrollBarVisibility="Disabled">
                                         <TextBox x:Name="txtLog" IsReadOnly="True" Background="Transparent" 
-                                                 Foreground="#00FF00" FontFamily="Consolas" FontSize="11" 
+                                                 Foreground="#00FF00" FontFamily="Consolas"
+                                                 FontSize="{Binding Settings.LogFontSize}"
                                                  TextWrapping="Wrap" BorderThickness="0" VerticalAlignment="Top"
                                                  Text="{Binding LogText, Mode=OneWay}"
                                                  TextChanged="TxtLog_TextChanged"/>
@@ -1164,6 +1165,18 @@
                               Background="Transparent" Foreground="#CCC" RowBackground="Transparent" 
                               BorderThickness="0" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                               HorizontalGridLinesBrush="#222">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0A0A0A"/>
+                                <Setter Property="Foreground" Value="#00FFFF"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Padding" Value="8,5"/>
+                                <Setter Property="BorderBrush" Value="#333333"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
                             <DataGridTextColumn Header="Program Name" Binding="{Binding Name}" Width="150" IsReadOnly="True"/>
@@ -1192,6 +1205,18 @@
                               Background="Transparent" Foreground="#CCC" RowBackground="Transparent" 
                               BorderThickness="0" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                               HorizontalGridLinesBrush="#222">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#0A0A0A"/>
+                                <Setter Property="Foreground" Value="#00FFFF"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                                <Setter Property="FontSize" Value="11"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Padding" Value="8,5"/>
+                                <Setter Property="BorderBrush" Value="#333333"/>
+                                <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridCheckBoxColumn Header="✓" Binding="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Width="36"/>
                             <DataGridTextColumn Header="Missing Path" Binding="{Binding ProblemData}" Width="150" IsReadOnly="True"/>
@@ -1260,6 +1285,21 @@
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
                     Text="The duplicate finder scans your chosen folder, groups files by size, then computes SHA-256 hashes for files with matching sizes. Files with identical hashes are exact duplicates. You can choose which copies to move to the Recycle Bin, keeping the one you want."/>
             </Expander>
+            <Expander Header="Can I analyze a disk other than C:?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Yes. Disk Analyzer detects ready local fixed and removable drives. Choose a drive from DISK TO ANALYZE, use REFRESH DISKS after connecting a drive, then start the scan. The overview, junk scan, and large-file scan use the selected drive where applicable."/>
+            </Expander>
+
+            <!-- Startup Manager -->
+            <TextBlock Text="─── STARTUP MANAGER ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
+            <Expander Header="What does Startup Manager inspect?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Startup Manager lists programs configured to run at sign-in and reports registry entries whose referenced file path is missing. Both scans are currently read-only: the app does not delete startup entries or repair registry keys."/>
+            </Expander>
+            <Expander Header="Why are Delete Checked and Fix Checked disabled?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="Changing startup and registry entries safely requires a reviewed backup, confirmation, and rollback workflow. Until those protections are implemented, the controls remain disabled and the feature is inspection-only."/>
+            </Expander>
 
             <!-- Large Files -->
             <TextBlock Text="─── LARGE FILES ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
@@ -1320,8 +1360,19 @@
                               IsChecked="{Binding Settings.DefaultCleanCache}"/>
                     <CheckBox Content="Empty recycle bin" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanRecycleBin}"/>
-                    <CheckBox Content="Recoverable deletion (Recycle Bin — enforced)" Style="{StaticResource TechCheckBox}" Margin="0,4"
-                              IsChecked="True" IsEnabled="False"/>
+                    <TextBlock Text="Additional targets" FontFamily="Consolas" FontSize="10" Foreground="#00FFFF" Margin="0,12,0,4"/>
+                    <CheckBox Content="Developer tools cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanDevTools}"/>
+                    <CheckBox Content="Gaming and communications cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanGaming}"/>
+                    <CheckBox Content="User crash reports and system dumps" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanSystemDumps}"/>
+                    <CheckBox Content="Flush DNS resolver cache" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanDNS}"/>
+                    <CheckBox Content="Explorer privacy and Windows component cleanup" Style="{StaticResource TechCheckBox}" Margin="0,4"
+                              IsChecked="{Binding Settings.DefaultCleanExtreme}"/>
+                    <TextBlock Text="Files are moved through the Recycle Bin by policy. Empty Recycle Bin and command-based operations are irreversible and are identified in the cleanup preview."
+                               TextWrapping="Wrap" FontFamily="Consolas" FontSize="10" Foreground="#FBBF24" Margin="0,12,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -1366,7 +1417,8 @@
                         <Run Text="Softcurse Vault Cleaner v"/>
                         <Run Text="{Binding AppVersion, Mode=OneWay}"/>
                     </TextBlock>
-                    <TextBlock Text="© 2026 Softcurse. All rights reserved." FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2"/>
+                    <TextBlock Text="Created by Softcurse Systems" FontFamily="Consolas" FontSize="10" Foreground="#888" Margin="0,2"/>
+                    <TextBlock Text="softcursesystems.pages.dev/lab/vault" FontFamily="Consolas" FontSize="10" Foreground="#00FFFF" Margin="0,2"/>
                     <TextBlock Text=".NET 10 LTS • WPF • Windows x64" FontFamily="Consolas" FontSize="10" Foreground="#555" Margin="0,2,0,12"/>
                     <Button Content="🔄 Reset All Settings to Defaults" Style="{StaticResource TechButton}"
                             Padding="12,6" Background="#1a0000" BorderBrush="#ff5f6d" Foreground="#ff5f6d"

@@ -123,7 +123,8 @@ namespace SoftcurseVaultCleaner
                 MessageBox.Show(
                     "Welcome to Softcurse Vault Cleaner! \u267b\n\n" +
                     "\u2022 \ud83e\uddf9 VAULT CLEANER \u2014 Quick cleanup of temp files, caches, and logs\n" +
-                    "\u2022 \ud83d\udcbd DISK ANALYZER \u2014 Deep scan with junk finder, duplicates, and large files\n" +
+                    "\u2022 \ud83d\udcbd DISK ANALYZER \u2014 Analyze a selected disk and find junk, duplicates, and large files\n" +
+                    "\u2022 \u26a1 STARTUP MANAGER \u2014 Read-only startup and invalid-registry inspection\n" +
                     "\u2022 \u2753 FAQ \u2014 Common questions and answers\n" +
                     "\u2022 \u2699\ufe0f SETTINGS \u2014 Customize your cleanup preferences\n\n" +
                     "TIP: The app runs in standard-user mode; supported maintenance elevates separately.\n" +

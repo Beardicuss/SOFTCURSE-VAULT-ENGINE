@@ -19,31 +19,20 @@ namespace SoftcurseVaultCleaner
 
         // ── General ─────────────────────────────────────────────────────
         private bool _checkUpdatesOnStartup = false;
-        private string _defaultDrive = "C:\\";
         private bool _startMinimized = false;
 
         // ── Cleanup defaults ────────────────────────────────────────────
         private bool _defaultCleanTemp = false;
         private bool _defaultCleanCache = false;
-        private bool _defaultCleanLogs = false;
         private bool _defaultCleanRecycleBin = false;
-        private bool _defaultCleanPrefetch = false;
-        private bool _defaultUseRecycleBin = true;
 
         private bool _defaultCleanDevTools = false;
         private bool _defaultCleanGaming = false;
         private bool _defaultCleanSystemDumps = false;
         private bool _defaultCleanDNS = false;
         private bool _defaultCleanExtreme = false;
-        private bool _defaultEnableAutoClean = false;
-        private bool _defaultDeepScanMode = false;
-
-
         // ── Appearance ──────────────────────────────────────────────────
         private int _logFontSize = 11;
-
-        // ── Storage ─────────────────────────────────────────────────────
-        private int _maxLogLines = 5000;
 
         // ── Onboarding ──────────────────────────────────────────────────
         private bool _hasCompletedFirstRun = false;
@@ -57,12 +46,6 @@ namespace SoftcurseVaultCleaner
         {
             get => _checkUpdatesOnStartup;
             set { if (_checkUpdatesOnStartup != value) { _checkUpdatesOnStartup = value; OnChanged(); } }
-        }
-
-        public string DefaultDrive
-        {
-            get => _defaultDrive;
-            set { if (_defaultDrive != value) { _defaultDrive = value; OnChanged(); } }
         }
 
         public bool StartMinimized
@@ -83,28 +66,10 @@ namespace SoftcurseVaultCleaner
             set { if (_defaultCleanCache != value) { _defaultCleanCache = value; OnChanged(); } }
         }
 
-        public bool DefaultCleanLogs
-        {
-            get => _defaultCleanLogs;
-            set { if (_defaultCleanLogs != value) { _defaultCleanLogs = value; OnChanged(); } }
-        }
-
         public bool DefaultCleanRecycleBin
         {
             get => _defaultCleanRecycleBin;
             set { if (_defaultCleanRecycleBin != value) { _defaultCleanRecycleBin = value; OnChanged(); } }
-        }
-
-        public bool DefaultCleanPrefetch
-        {
-            get => _defaultCleanPrefetch;
-            set { if (_defaultCleanPrefetch != value) { _defaultCleanPrefetch = value; OnChanged(); } }
-        }
-
-        public bool DefaultUseRecycleBin
-        {
-            get => _defaultUseRecycleBin;
-            set { if (_defaultUseRecycleBin != value) { _defaultUseRecycleBin = value; OnChanged(); } }
         }
 
         public bool DefaultCleanDevTools
@@ -137,28 +102,10 @@ namespace SoftcurseVaultCleaner
             set { if (_defaultCleanExtreme != value) { _defaultCleanExtreme = value; OnChanged(); } }
         }
 
-        public bool DefaultEnableAutoClean
-        {
-            get => _defaultEnableAutoClean;
-            set { if (_defaultEnableAutoClean != value) { _defaultEnableAutoClean = value; OnChanged(); } }
-        }
-
-        public bool DefaultDeepScanMode
-        {
-            get => _defaultDeepScanMode;
-            set { if (_defaultDeepScanMode != value) { _defaultDeepScanMode = value; OnChanged(); } }
-        }
-
         public int LogFontSize
         {
             get => _logFontSize;
             set { int v = Math.Clamp(value, 8, 24); if (_logFontSize != v) { _logFontSize = v; OnChanged(); } }
-        }
-
-        public int MaxLogLines
-        {
-            get => _maxLogLines;
-            set { if (_maxLogLines != value) { _maxLogLines = value; OnChanged(); } }
         }
 
         public bool HasCompletedFirstRun
@@ -229,24 +176,17 @@ namespace SoftcurseVaultCleaner
         {
             var fresh = new AppSettings();
             CheckUpdatesOnStartup = fresh.CheckUpdatesOnStartup;
-            DefaultDrive = fresh.DefaultDrive;
             StartMinimized = fresh.StartMinimized;
             DefaultCleanTemp = fresh.DefaultCleanTemp;
             DefaultCleanCache = fresh.DefaultCleanCache;
-            DefaultCleanLogs = fresh.DefaultCleanLogs;
             DefaultCleanRecycleBin = fresh.DefaultCleanRecycleBin;
-            DefaultCleanPrefetch = fresh.DefaultCleanPrefetch;
-            DefaultUseRecycleBin = fresh.DefaultUseRecycleBin;
             LogFontSize = fresh.LogFontSize;
-            MaxLogLines = fresh.MaxLogLines;
             
             DefaultCleanDevTools = fresh.DefaultCleanDevTools;
             DefaultCleanGaming = fresh.DefaultCleanGaming;
             DefaultCleanSystemDumps = fresh.DefaultCleanSystemDumps;
             DefaultCleanDNS = fresh.DefaultCleanDNS;
             DefaultCleanExtreme = fresh.DefaultCleanExtreme;
-            DefaultEnableAutoClean = fresh.DefaultEnableAutoClean;
-            DefaultDeepScanMode = fresh.DefaultDeepScanMode;
             Phase1SafetyDefaultsMigrated = true;
             
             Save();
@@ -258,17 +198,12 @@ namespace SoftcurseVaultCleaner
 
             _defaultCleanTemp = false;
             _defaultCleanCache = false;
-            _defaultCleanLogs = false;
             _defaultCleanRecycleBin = false;
-            _defaultCleanPrefetch = false;
-            _defaultUseRecycleBin = true;
             _defaultCleanDevTools = false;
             _defaultCleanGaming = false;
             _defaultCleanSystemDumps = false;
             _defaultCleanDNS = false;
             _defaultCleanExtreme = false;
-            _defaultEnableAutoClean = false;
-            _defaultDeepScanMode = false;
             _phase1SafetyDefaultsMigrated = true;
             Save();
         }

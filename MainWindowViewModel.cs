@@ -104,7 +104,12 @@ namespace SoftcurseVaultCleaner
             QuickScanCommand = new RelayCommand(QuickScan, () => !IsCleaning);
             RemoveFolderCommand = new RelayCommand(RemoveSelectedFolder, () => SelectedCustomFolder != null);
             CheckForUpdatesCommand = new RelayCommand(async () => await CheckForUpdatesAsync());
-            ResetSettingsCommand = new RelayCommand(() => Settings.Reset());
+            ResetSettingsCommand = new RelayCommand(() =>
+            {
+                Settings.Reset();
+                LoadSettingsDefaults();
+                Status = "SETTINGS RESET TO SAFE DEFAULTS";
+            });
             DownloadUpdateCommand = new RelayCommand(async () => await DownloadVerifiedUpdateAsync());
 
             // Load cleanup defaults from saved settings
@@ -661,9 +666,9 @@ namespace SoftcurseVaultCleaner
         {
             CleanTempFiles = Settings.DefaultCleanTemp;
             CleanCache = Settings.DefaultCleanCache;
-            CleanLogs = Settings.DefaultCleanLogs;
+            CleanLogs = false;
             CleanRecycleBin = Settings.DefaultCleanRecycleBin;
-            CleanPrefetch = Settings.DefaultCleanPrefetch;
+            CleanPrefetch = false;
             UseRecycleBin = true;
             
             CleanDevTools = Settings.DefaultCleanDevTools;
