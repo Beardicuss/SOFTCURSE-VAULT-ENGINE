@@ -144,7 +144,8 @@ try {
         if (-not (Test-Path $defaultIscc)) { throw 'Inno Setup 6 compiler was not found.' }
         $isccPath = $defaultIscc
     } else { $isccPath = $iscc.Source }
-    Invoke-Checked $isccPath @("/DPublishSource=$appStage", "/DReleaseOutputDir=$installerStage", $installerScript)
+    Invoke-Checked $isccPath @("/DPublishSource=$appStage", "/DReleaseOutputDir=$installerStage",
+        "/DMyAppVersion=$version", $installerScript)
 
     $installers = @(Get-ChildItem $installerStage -Filter '*.exe')
     if ($installers.Count -ne 1) { throw "Expected one installer, found $($installers.Count)." }

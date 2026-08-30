@@ -9,7 +9,9 @@
 #endif
 
 #define MyAppName "Softcurse Vault Cleaner"
-#define MyAppVersion GetFileVersion(PublishSource + "\Win11 Auto-Clean.exe")
+#ifndef MyAppVersion
+  #define MyAppVersion GetFileVersion(PublishSource + "\Win11 Auto-Clean.exe")
+#endif
 #define MyAppPublisher "Softcurse Systems"
 #define MyAppURL "https://softcursesystems.pages.dev"
 #define MyAppSupportURL "https://softcursesystems.pages.dev/lab/vault"

@@ -86,6 +86,7 @@ try {
     Invoke-Checked $isccPath @(
         "/DPublishSource=$appStage",
         "/DReleaseOutputDir=$installerStage",
+        "/DMyAppVersion=$version",
         '/DReleaseChannelSuffix=_UNSIGNED',
         $installerScript)
 
