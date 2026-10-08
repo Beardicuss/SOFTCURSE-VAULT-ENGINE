@@ -345,18 +345,7 @@ namespace SoftcurseVaultCleaner
             for (int attempt = 0; attempt < 3; attempt++)
             {
                 if (!File.Exists(path) && !Directory.Exists(path)) return;
-
-                var operation = new ShFileOpStruct
-                {
-                    Function = FoDelete,
-                    From = path + '\0' + '\0',
-                    To = null,
-                    Flags = FofSilent | FofNoConfirmation | FofAllowUndo |
-                            FofNoConfirmMkdir | FofNoErrorUi,
-                    ProgressTitle = null
-                };
-                result = SHFileOperation(ref operation);
-                aborted = operation.AnyOperationsAborted;
+                result = MovePathsToRecycleBinWithoutUi(new[] { path }, out aborted);
                 if (result == 0 && !aborted) return;
                 if (!File.Exists(path) && !Directory.Exists(path)) return;
                 if (result is not (SharingViolation or LockViolation)) break;
@@ -370,6 +359,36 @@ namespace SoftcurseVaultCleaner
             if (aborted)
                 throw new IOException("Windows cancelled the Recycle Bin operation.");
             throw new IOException($"Windows could not move the item to the Recycle Bin (shell result 0x{result:X}).");
+        }
+
+        private static int MovePathsToRecycleBinWithoutUi(
+            IReadOnlyList<string> paths,
+            out bool aborted)
+        {
+            var operation = new ShFileOpStruct
+            {
+                Function = FoDelete,
+                From = BuildShellPathList(paths),
+                To = null,
+                Flags = FofSilent | FofNoConfirmation | FofAllowUndo |
+                        FofNoConfirmMkdir | FofNoErrorUi,
+                ProgressTitle = null
+            };
+            int result = SHFileOperation(ref operation);
+            aborted = operation.AnyOperationsAborted;
+            return result;
+        }
+
+        internal static string BuildShellPathList(IEnumerable<string> paths)
+        {
+            string[] materialized = paths
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .ToArray();
+            if (materialized.Length == 0)
+                throw new ArgumentException("At least one cleanup path is required.", nameof(paths));
+            if (materialized.Any(path => path.IndexOf('\0') >= 0))
+                throw new ArgumentException("Cleanup paths cannot contain null characters.", nameof(paths));
+            return string.Join('\0', materialized) + '\0' + '\0';
         }
 
         private static long DeleteDirectoryContentsRecoverably(
@@ -406,20 +425,46 @@ namespace SoftcurseVaultCleaner
                 }
             }
 
-            foreach (string file in files)
+            const int BatchSize = 64;
+            for (int offset = 0; offset < files.Count; offset += BatchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                try
+                List<string> batch = files.Skip(offset).Take(BatchSize)
+                    .Where(File.Exists)
+                    .ToList();
+                if (batch.Count == 0) continue;
+
+                var sizes = new Dictionary<string, long>(PathComparer);
+                foreach (string file in batch)
                 {
-                    bytesFreed += DeleteFileRecoverably(file);
+                    try { sizes[file] = new FileInfo(file).Length; }
+                    catch (IOException) { sizes[file] = 0; }
+                    catch (UnauthorizedAccessException) { sizes[file] = 0; }
                 }
-                catch (IOException ex)
+
+                _ = MovePathsToRecycleBinWithoutUi(batch, out _);
+
+                foreach (string file in batch)
                 {
-                    skipped.Add($"{Path.GetFileName(file)}: {ex.Message}");
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    skipped.Add($"{Path.GetFileName(file)}: access was denied");
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!File.Exists(file))
+                    {
+                        bytesFreed += sizes[file];
+                        continue;
+                    }
+
+                    try
+                    {
+                        bytesFreed += DeleteFileRecoverably(file);
+                    }
+                    catch (IOException ex)
+                    {
+                        skipped.Add($"{Path.GetFileName(file)}: {ex.Message}");
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        skipped.Add($"{Path.GetFileName(file)}: access was denied");
+                    }
                 }
             }
 

@@ -238,6 +238,14 @@ Assert(partialDirectoryResult.SucceededCount == 1 &&
        partialDirectoryResult.Items[0].HadPartialFailure,
     "preserves reclaimed bytes and reports a partially cleaned directory");
 
+string shellPathList = SafeCleanupEngine.BuildShellPathList(new[]
+{
+    @"C:\Temp\one.tmp",
+    @"C:\Temp\two.tmp"
+});
+Assert(shellPathList == "C:\\Temp\\one.tmp\0C:\\Temp\\two.tmp\0\0",
+    "builds a correctly double-null-terminated shell batch path list");
+
 using var midCancellation = new CancellationTokenSource();
 int deletionCalls = 0;
 var cancellationEngine = new SafeCleanupEngine(

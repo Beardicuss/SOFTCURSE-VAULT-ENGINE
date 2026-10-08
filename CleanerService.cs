@@ -50,16 +50,6 @@ namespace SoftcurseVaultCleaner
 
         public long TotalSpaceFreed => _totalSpaceFreed;
 
-        // DLL imports
-        [System.Runtime.InteropServices.DefaultDllImportSearchPaths(
-            System.Runtime.InteropServices.DllImportSearchPath.System32)]
-        [System.Runtime.InteropServices.DllImport("Shell32.dll", EntryPoint = "SHEmptyRecycleBinW",
-            CharSet = System.Runtime.InteropServices.CharSet.Unicode, ExactSpelling = true)]
-        static extern uint SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
-        private const uint SHERB_NOCONFIRMATION = 0x00000001;
-        private const uint SHERB_NOPROGRESSUI = 0x00000002;
-        private const uint SHERB_NOSOUND = 0x00000004;
-
         public void RequestAbort()
         {
             _abortRequested = true;
@@ -283,7 +273,7 @@ namespace SoftcurseVaultCleaner
 
             // Empty last so files moved during this run are actually reclaimed.
             if (config.CleanRecycleBin)
-                tasks.Add(("Empty Recycle Bin", () => { CleanRecycleBin(); return Task.CompletedTask; }));
+                tasks.Add(("Empty Recycle Bin", () => CleanRecycleBinAsync(token)));
 
             // Execute tasks with evenly distributed progress (5% to 95%)
             int totalTasks = tasks.Count;
@@ -334,16 +324,31 @@ namespace SoftcurseVaultCleaner
         }
 
         // Cleanup methods
-        private void CleanRecycleBin()
+        private async Task CleanRecycleBinAsync(CancellationToken cancellationToken)
         {
             try
             {
-                uint result = SHEmptyRecycleBin(IntPtr.Zero, null, SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI);
-                if (result == 0)
+                string powerShell = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.System),
+                    "WindowsPowerShell", "v1.0", "powershell.exe");
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = powerShell,
+                    Arguments = "-NoLogo -NoProfile -NonInteractive -WindowStyle Hidden " +
+                                "-Command \"Clear-RecycleBin -Force -ErrorAction SilentlyContinue\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+                using Process process = Process.Start(startInfo)
+                    ?? throw new InvalidOperationException("Could not start the hidden Recycle Bin cleanup process.");
+                await process.WaitForExitAsync(cancellationToken);
+                if (process.ExitCode == 0)
                     LogStatus("RECYCLE BIN: Emptied successfully");
                 else
-                    LogStatus("RECYCLE BIN: Cleanup completed (may have been empty)");
+                    LogStatus($"RECYCLE BIN: Cleanup finished with exit code {process.ExitCode}; unavailable entries were skipped.");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 LogStatus($"RECYCLE BIN: Failed - {ex.Message}");
