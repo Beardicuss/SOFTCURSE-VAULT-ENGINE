@@ -49,7 +49,9 @@ var tempPreview = engine.Preview(DirectoryTarget("temp", temp,
     CleanupTargetOrigin.UserSelected));
 Assert(tempPreview.IsAllowed, "allows approved user temporary root", tempPreview.ValidationMessage);
 
-var privilegedPreview = engine.Preview(new CleanupTarget(
+var standardUserEngine = new SafeCleanupEngine(
+    Array.Empty<string>(), temp, isAdministrator: () => false);
+var privilegedPreview = standardUserEngine.Preview(new CleanupTarget(
     "privileged-temp", "privileged-temp", temp, "Safety policy test",
     CleanupTargetType.DirectoryContents, CleanupTargetOrigin.BuiltIn,
     RequiredPrivilege: CleanupPrivilege.Administrator));
@@ -221,6 +223,20 @@ Assert(partialResult.FailedCount == 1 && partialResult.SucceededCount == 1,
     "propagates one failure and continues independent targets");
 Assert(partialResult.Items[0].Message.Contains("Synthetic deletion failure", StringComparison.Ordinal),
     "preserves actionable deletion failure message");
+
+var partialDirectoryEngine = new SafeCleanupEngine(
+    Array.Empty<string>(), fixtureRoot, _ => false,
+    deleteDirectoryContents: (_, _) => throw new SafeCleanupEngine.PartialCleanupException(
+        23, 2, "Moved accessible contents; 2 in-use items were left untouched."));
+CleanupExecutionResult partialDirectoryResult = await partialDirectoryEngine.ExecuteAsync(new[]
+{
+    DirectoryTarget("partial-directory", canonicalDirectory, CleanupTargetOrigin.BuiltIn)
+});
+Assert(partialDirectoryResult.SucceededCount == 1 &&
+       partialDirectoryResult.FailedCount == 1 &&
+       partialDirectoryResult.BytesFreed == 23 &&
+       partialDirectoryResult.Items[0].HadPartialFailure,
+    "preserves reclaimed bytes and reports a partially cleaned directory");
 
 using var midCancellation = new CancellationTokenSource();
 int deletionCalls = 0;

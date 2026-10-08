@@ -329,10 +329,6 @@ namespace SoftcurseVaultCleaner
 
             var preview = _svc.PreviewJunk(selected);
             if (!EnsurePreviewCanProceed(preview)) return;
-            string msg = BuildPreviewMessage(preview, "Move selected cleanup contents to the Recycle Bin?");
-
-            if (MessageBox.Show(msg, "Confirm Deletion", MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
             IsScanning = true;
             _cts = new CancellationTokenSource();
@@ -350,11 +346,8 @@ namespace SoftcurseVaultCleaner
 
                     string summary = $"Moved {result.DeletedCount} item(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0)
-                        summary += $" ({result.FailedCount} failed — may need Admin rights)";
+                        summary += $" ({result.FailedCount} busy, changed, or safety-blocked target(s) left untouched)";
                     Status = summary;
-                    MessageBox.Show(summary + (result.Errors.Count > 0
-                        ? "\n\nErrors:\n" + string.Join("\n", result.Errors.Take(5))
-                        : ""), "Deletion Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                 });
             }
             catch (OperationCanceledException) { Dispatch(() => Status = "Deletion cancelled."); }
@@ -566,10 +559,6 @@ namespace SoftcurseVaultCleaner
 
             var preview = _svc.PreviewJunk(selected);
             if (!EnsurePreviewCanProceed(preview)) return;
-            string msg = BuildPreviewMessage(preview, "Move selected cleanup contents to the Recycle Bin?");
-
-            if (MessageBox.Show(msg, "Confirm Deletion", MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
             IsScanning = true;
             _cts = new CancellationTokenSource();
@@ -593,11 +582,8 @@ namespace SoftcurseVaultCleaner
 
                     string summary = $"Moved {result.DeletedCount} item(s) to Recycle Bin — {result.BytesFreedStr}";
                     if (result.FailedCount > 0)
-                        summary += $" ({result.FailedCount} failed — may need Admin rights)";
+                        summary += $" ({result.FailedCount} busy, changed, or safety-blocked target(s) left untouched)";
                     Status = summary;
-                    MessageBox.Show(summary + (result.Errors.Count > 0
-                        ? "\n\nErrors:\n" + string.Join("\n", result.Errors.Take(5))
-                        : ""), "Deletion Complete", MessageBoxButton.OK, MessageBoxImage.Information);
                 });
             }
             catch (OperationCanceledException) { Dispatch(() => Status = "Deletion cancelled."); }

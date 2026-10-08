@@ -24,7 +24,7 @@ The production update channel is currently disabled until production signing key
 
 ## Deletion and retention
 
-Settings and logs remain on the computer until the user or uninstaller removes them. WebView2 data remains local until removed by the user or uninstaller. Files approved through the standard cleanup engine are sent to the Windows Recycle Bin; supported maintenance commands that Windows defines as non-recoverable are identified separately before confirmation.
+Settings and logs remain on the computer until the user or uninstaller removes them. WebView2 data remains local until removed by the user or uninstaller. Files approved through the cleanup engine are sent to the Windows Recycle Bin. Explicitly selected commands such as emptying the Recycle Bin are non-recoverable and begin when the user presses the cleanup button.
 
 Before sharing diagnostics, review them and remove usernames, personal paths, filenames, and other sensitive information.
 

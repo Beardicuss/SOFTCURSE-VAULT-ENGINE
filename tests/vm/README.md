@@ -6,8 +6,8 @@ Destructive cleanup and installer lifecycle tests must never run on a developer 
 
 | Image | Account/layout purpose |
 | --- | --- |
-| Windows 10 x64 | Supported older OS baseline, standard-user application launch |
-| Windows 11 x64 | Current OS baseline, standard-user application launch |
+| Windows 10 x64 | Supported older OS baseline, elevated application launch |
+| Windows 11 x64 | Current OS baseline, elevated application launch |
 | Windows 11 x64 without WebView2 Evergreen | Confirms cleanup remains usable when animated loader content is unavailable |
 | Windows 11 with Windows installed on a non-`C:` volume | Detects system-drive assumptions |
 | Windows 11 with two standard-user profiles | Confirms per-user settings, WebView2 data, logs, and update staging remain isolated |
@@ -35,7 +35,7 @@ Supply `-PreviousInstallerPath` to test an upgrade over the previous signed rele
 
 ## Interactive checks per image
 
-1. Launch the installed application as each standard user; confirm it does not request elevation at startup.
+1. Launch the installed application from each test profile; confirm Windows requests administrator approval at startup and the app opens after valid administrator credentials are supplied.
 2. Preview every cleanup category and confirm no operation occurs before confirmation.
 3. Cancel before execution, during enumeration, and between targets; confirm cancellation is reported and later targets are untouched.
 4. Introduce locked/inaccessible fixture files and verify individual failures are reported without hiding successful independent targets.

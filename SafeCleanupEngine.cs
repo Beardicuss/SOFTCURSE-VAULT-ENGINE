@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,14 +75,16 @@ namespace SoftcurseVaultCleaner
         bool Succeeded,
         bool WasSkipped,
         long BytesFreed,
-        string Message);
+        string Message,
+        bool HadPartialFailure = false);
 
     public sealed class CleanupExecutionResult
     {
         public IReadOnlyList<CleanupItemResult> Items { get; init; } = Array.Empty<CleanupItemResult>();
         public long BytesFreed => Items.Sum(item => item.BytesFreed);
         public int SucceededCount => Items.Count(item => item.Succeeded);
-        public int FailedCount => Items.Count(item => !item.Succeeded && !item.WasSkipped);
+        public int FailedCount => Items.Count(item =>
+            (!item.Succeeded && !item.WasSkipped) || item.HadPartialFailure);
         public int SkippedCount => Items.Count(item => item.WasSkipped);
         public bool WasCancelled { get; init; }
     }
@@ -121,6 +124,7 @@ namespace SoftcurseVaultCleaner
         private readonly Func<string, bool> _isReparsePoint;
         private readonly Func<string, long> _deleteFile;
         private readonly Func<string, CancellationToken, long> _deleteDirectoryContents;
+        private readonly Func<bool> _isAdministrator;
 
         public SafeCleanupEngine()
             : this(
@@ -128,7 +132,8 @@ namespace SoftcurseVaultCleaner
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())),
                 IsActualReparsePoint,
                 DeleteFileRecoverably,
-                DeleteDirectoryContentsRecoverably)
+                DeleteDirectoryContentsRecoverably,
+                IsRunningAsAdministrator)
         {
         }
 
@@ -137,7 +142,8 @@ namespace SoftcurseVaultCleaner
             string approvedTemporaryRoot,
             Func<string, bool>? isReparsePoint = null,
             Func<string, long>? deleteFile = null,
-            Func<string, CancellationToken, long>? deleteDirectoryContents = null)
+            Func<string, CancellationToken, long>? deleteDirectoryContents = null,
+            Func<bool>? isAdministrator = null)
         {
             ArgumentNullException.ThrowIfNull(protectedRoots);
             ArgumentException.ThrowIfNullOrWhiteSpace(approvedTemporaryRoot);
@@ -152,6 +158,7 @@ namespace SoftcurseVaultCleaner
             _isReparsePoint = isReparsePoint ?? IsActualReparsePoint;
             _deleteFile = deleteFile ?? DeleteFileRecoverably;
             _deleteDirectoryContents = deleteDirectoryContents ?? DeleteDirectoryContentsRecoverably;
+            _isAdministrator = isAdministrator ?? IsRunningAsAdministrator;
         }
 
         public CleanupPreviewItem Preview(CleanupTarget target)
@@ -230,6 +237,12 @@ namespace SoftcurseVaultCleaner
                     cancelled = true;
                     break;
                 }
+                catch (PartialCleanupException ex)
+                {
+                    results.Add(new CleanupItemResult(
+                        target, validation.CanonicalPath, true, false, ex.BytesFreed,
+                        ex.Message, HadPartialFailure: true));
+                }
                 catch (Exception ex)
                 {
                     results.Add(new CleanupItemResult(
@@ -249,9 +262,9 @@ namespace SoftcurseVaultCleaner
             if (target.DeletionMode != CleanupDeletionMode.RecycleBin)
                 return (false, string.Empty, "Permanent deletion is not available during Phase 1.");
 
-            if (target.RequiredPrivilege == CleanupPrivilege.Administrator)
+            if (target.RequiredPrivilege == CleanupPrivilege.Administrator && !_isAdministrator())
                 return (false, string.Empty,
-                    "Administrator filesystem cleanup is not available in the standard-user app. Use Windows maintenance tools instead.");
+                    "This cleanup target requires an elevated application process.");
 
             string canonicalPath;
             try
@@ -315,6 +328,7 @@ namespace SoftcurseVaultCleaner
 
         private static long DeleteFileRecoverably(string path)
         {
+            if (!File.Exists(path)) return 0;
             EnsureNotReparsePoint(path);
             long size = new FileInfo(path).Length;
             MoveToRecycleBinWithoutUi(path);
@@ -323,18 +337,39 @@ namespace SoftcurseVaultCleaner
 
         private static void MoveToRecycleBinWithoutUi(string path)
         {
-            var operation = new ShFileOpStruct
+            const int SharingViolation = 0x20;
+            const int LockViolation = 0x21;
+            int result = 0;
+            bool aborted = false;
+
+            for (int attempt = 0; attempt < 3; attempt++)
             {
-                Function = FoDelete,
-                From = path + '\0' + '\0',
-                To = null,
-                Flags = FofSilent | FofNoConfirmation | FofAllowUndo |
-                        FofNoConfirmMkdir | FofNoErrorUi,
-                ProgressTitle = null
-            };
-            int result = SHFileOperation(ref operation);
-            if (result != 0 || operation.AnyOperationsAborted)
-                throw new IOException($"Windows could not move the item to the Recycle Bin (shell result 0x{result:X}).");
+                if (!File.Exists(path) && !Directory.Exists(path)) return;
+
+                var operation = new ShFileOpStruct
+                {
+                    Function = FoDelete,
+                    From = path + '\0' + '\0',
+                    To = null,
+                    Flags = FofSilent | FofNoConfirmation | FofAllowUndo |
+                            FofNoConfirmMkdir | FofNoErrorUi,
+                    ProgressTitle = null
+                };
+                result = SHFileOperation(ref operation);
+                aborted = operation.AnyOperationsAborted;
+                if (result == 0 && !aborted) return;
+                if (!File.Exists(path) && !Directory.Exists(path)) return;
+                if (result is not (SharingViolation or LockViolation)) break;
+                Thread.Sleep(100 * (attempt + 1));
+            }
+
+            if (result is SharingViolation or LockViolation)
+                throw new IOException("The item is in use by another process and was left untouched.");
+            if (result == 0x7C)
+                throw new IOException("The item changed or became unavailable while cleanup was running.");
+            if (aborted)
+                throw new IOException("Windows cancelled the Recycle Bin operation.");
+            throw new IOException($"Windows could not move the item to the Recycle Bin (shell result 0x{result:X}).");
         }
 
         private static long DeleteDirectoryContentsRecoverably(
@@ -343,6 +378,7 @@ namespace SoftcurseVaultCleaner
         {
             EnsureNotReparsePoint(directory);
             long bytesFreed = 0;
+            var skipped = new List<string>();
 
             // Snapshot and validate the whole tree before moving anything. This prevents
             // a late-discovered junction from producing an avoidable partial cleanup.
@@ -373,7 +409,18 @@ namespace SoftcurseVaultCleaner
             foreach (string file in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                bytesFreed += DeleteFileRecoverably(file);
+                try
+                {
+                    bytesFreed += DeleteFileRecoverably(file);
+                }
+                catch (IOException ex)
+                {
+                    skipped.Add($"{Path.GetFileName(file)}: {ex.Message}");
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    skipped.Add($"{Path.GetFileName(file)}: access was denied");
+                }
             }
 
             foreach (string childDirectory in directories
@@ -381,11 +428,47 @@ namespace SoftcurseVaultCleaner
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!Directory.Exists(childDirectory)) continue;
-                EnsureNotReparsePoint(childDirectory);
-                MoveToRecycleBinWithoutUi(childDirectory);
+                try
+                {
+                    EnsureNotReparsePoint(childDirectory);
+                    if (!Directory.EnumerateFileSystemEntries(childDirectory).Any())
+                        MoveToRecycleBinWithoutUi(childDirectory);
+                }
+                catch (IOException)
+                {
+                    // A busy or concurrently recreated directory is intentionally retained.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // An inaccessible empty directory is intentionally retained.
+                }
             }
 
+            if (skipped.Count > 0)
+                throw new PartialCleanupException(bytesFreed, skipped.Count,
+                    $"Moved accessible contents; {skipped.Count} in-use or unavailable item(s) were left untouched. " +
+                    string.Join(" ", skipped.Take(3)));
+
             return bytesFreed;
+        }
+
+        internal sealed class PartialCleanupException : IOException
+        {
+            public PartialCleanupException(long bytesFreed, int skippedCount, string message)
+                : base(message)
+            {
+                BytesFreed = bytesFreed;
+                SkippedCount = skippedCount;
+            }
+
+            public long BytesFreed { get; }
+            public int SkippedCount { get; }
+        }
+
+        private static bool IsRunningAsAdministrator()
+        {
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
         }
 
         private static void EnsureDirectChild(string parent, string child)

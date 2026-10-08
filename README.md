@@ -25,7 +25,7 @@ Softcurse Vault Cleaner is a dark-neon WPF utility for reviewing and reclaiming 
 
 - Cleans selected user temporary files, browser caches, thumbnail caches, developer caches, gaming and communications caches, and user crash reports.
 - Supports approved custom folders after protected-path validation.
-- Shows a categorized confirmation preview before making changes.
+- Builds and validates a cleanup plan before making changes, then starts from the explicit cleanup button without a second confirmation dialog.
 - Blocks drive roots, Windows and application directories, unsafe profile roots, links, junctions, and mount points.
 - Sends allowed filesystem targets to the Recycle Bin.
 - Clearly separates irreversible operations such as emptying the Recycle Bin and flushing the DNS resolver cache.
@@ -59,10 +59,10 @@ Softcurse Vault Cleaner is a dark-neon WPF utility for reviewing and reclaiming 
 - Every cleanup request is rebuilt as a safety-validated execution plan.
 - Unsafe custom paths fail closed.
 - Filesystem deletion is recoverable through the Recycle Bin unless the user explicitly empties it.
-- The main application runs as a standard user. Only the allowlisted Windows component-cleanup helper requests UAC.
+- The application requests administrator approval at launch. Elevation improves access but cannot remove files actively locked by another process.
 - Startup and registry scans do not modify the system.
 
-Always read the preview before confirming a cleanup. Closing browsers and other active applications first improves cache-cleaning results.
+Review your selected categories before starting cleanup. Closing browsers and other active applications first improves cache-cleaning results and reduces locked files.
 
 ## Requirements
 
@@ -74,7 +74,7 @@ The release is self-contained and does not require a separate .NET installation.
 
 ## Install
 
-Download `SoftcurseVaultCleaner_Setup_v1.0.0.exe` from the [GitHub Releases page](https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE/releases), run it, and launch the app normally as a standard user.
+Download `SoftcurseVaultCleaner_Setup_v1.0.0.exe` from the [GitHub Releases page](https://github.com/Beardicuss/SOFTCURSE-VAULT-ENGINE/releases), run it, and approve the Windows administrator prompt when launching the app.
 
 If an older package was installed with a higher experimental version number, uninstall it before installing `1.0.0`.
 
@@ -108,7 +108,7 @@ Win11 Auto-Clean/
 ├── MainWindow.xaml                 Main WPF interface
 ├── MainWindowViewModel.cs          Cleaner and application state
 ├── CleanerService.cs               Cleanup target catalog and execution
-├── SafeCleanupEngine.cs            Path policy, preview, and safe deletion
+├── SafeCleanupEngine.cs            Path policy, validation, and safe deletion
 ├── DiskAnalyzerService.cs          Disk scanning and file analysis
 ├── DiskAnalyzerViewModel.cs        Multi-drive analyzer UI logic
 ├── AutoTuneViewModel.cs            Read-only startup/registry inspection

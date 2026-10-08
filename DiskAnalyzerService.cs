@@ -266,7 +266,7 @@ namespace SoftcurseVaultCleaner
                 BytesFreed = result.BytesFreed
             };
             converted.Errors.AddRange(result.Items
-                .Where(item => !item.Succeeded)
+                .Where(item => !item.Succeeded || item.HadPartialFailure)
                 .Select(item => $"{item.Target.DisplayName}: {item.Message}"));
             return converted;
         }

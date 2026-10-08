@@ -343,7 +343,7 @@
                                     </TextBlock.Effect>
                                 </TextBlock>
                                 <TextBlock x:Name="txtAdminStatus"
-                                           Text="[STANDARD USER MODE]"
+                                           Text="[ADMINISTRATOR MODE]"
                                            FontFamily="Consolas"
                                            FontSize="10"
                                            Foreground="#4ADE80"
@@ -1257,7 +1257,7 @@
             </Expander>
             <Expander Header="Do I need administrator privileges?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="No. The main app intentionally runs as a standard user. A separate, narrowly allowlisted helper requests elevation only for a supported maintenance action that genuinely requires it."/>
+                    Text="Yes. The app requests administrator approval at launch so selected cleanup locations can be processed consistently. Files that are actively open can still remain locked; elevation does not override an open file handle. Protected paths, links, junctions, and mount points remain blocked."/>
             </Expander>
 
             <!-- Cleanup -->
@@ -1268,22 +1268,26 @@
             </Expander>
             <Expander Header="Can I undo a cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Filesystem cleanup is currently forced through the Recycle Bin and can normally be restored there. Emptying the Recycle Bin and Windows commands or settings changes are not covered by that recovery mechanism; the preview identifies those separately."/>
+                    Text="Filesystem cleanup is currently forced through the Recycle Bin and can normally be restored there. Emptying the Recycle Bin and Windows commands or settings changes are not recoverable, so select those options only when you intend to run them."/>
             </Expander>
             <Expander Header="What is Windows component cleanup?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="This optional action runs the supported DISM StartComponentCleanup command through a separate fixed-command helper. Windows shows a UAC prompt for that action only. ResetBase, Installer-cache deletion, pagefile changes, and shadow-copy deletion are not performed."/>
+                    Text="This optional action runs the supported DISM StartComponentCleanup command through a separate fixed-command helper. The application already requests elevation at launch. ResetBase, Installer-cache deletion, pagefile changes, and shadow-copy deletion are not performed."/>
             </Expander>
 
             <!-- Disk Analyzer -->
             <TextBlock Text="─── DISK ANALYZER ───" FontFamily="Consolas" FontSize="12" Foreground="#00FFFF" Margin="0,20,0,8" FontWeight="Bold"/>
             <Expander Header="How does the junk scanner work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="The junk scanner measures known locations and categorizes them as Recommended or Review. Nothing is preselected. Recommended means lower risk, not risk-free; inspect the exact path in the confirmation preview before proceeding."/>
+                    Text="The junk scanner measures known locations and categorizes them as Recommended or Review. Nothing is preselected. Recommended means lower risk, not risk-free; review the selected rows before pressing the delete button."/>
             </Expander>
             <Expander Header="How does duplicate finder work?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
                     Text="The duplicate finder scans your chosen folder, groups files by size, then computes SHA-256 hashes for files with matching sizes. Files with identical hashes are exact duplicates. You can choose which copies to move to the Recycle Bin, keeping the one you want."/>
+            </Expander>
+            <Expander Header="Why does cleanup start without another confirmation?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
+                <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
+                    Text="INITIATE CLEANUP PROTOCOL is the explicit start action. The app validates the plan silently and begins immediately. Unsafe, unavailable, linked, or junction-backed targets are skipped and recorded in the System Log."/>
             </Expander>
             <Expander Header="Can I analyze a disk other than C:?" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
@@ -1320,7 +1324,7 @@
             </Expander>
             <Expander Header="Cleanup failed or some files weren't deleted" Foreground="#ccc" FontFamily="Consolas" FontSize="11" Margin="0,2">
                 <TextBlock TextWrapping="Wrap" Foreground="#888" FontFamily="Consolas" FontSize="10" Margin="20,5,0,10"
-                    Text="Some files may be locked by running processes. Close browsers and background applications before cleaning. Protected system directories are intentionally not cleaned by the standard-user app. Check the System Log for specific results."/>
+                    Text="Some files may be locked by running processes even when the app is elevated. Close browsers and background applications before cleaning. Protected system directories remain blocked. Check the System Log for specific results."/>
             </Expander>
         </StackPanel>
     </ScrollViewer>
@@ -1371,7 +1375,7 @@
                               IsChecked="{Binding Settings.DefaultCleanDNS}"/>
                     <CheckBox Content="Explorer privacy and Windows component cleanup" Style="{StaticResource TechCheckBox}" Margin="0,4"
                               IsChecked="{Binding Settings.DefaultCleanExtreme}"/>
-                    <TextBlock Text="Files are moved through the Recycle Bin by policy. Empty Recycle Bin and command-based operations are irreversible and are identified in the cleanup preview."
+                    <TextBlock Text="Files are moved through the Recycle Bin by policy. Empty Recycle Bin and command-based operations are irreversible, so enable those defaults only when you want them to run immediately."
                                TextWrapping="Wrap" FontFamily="Consolas" FontSize="10" Foreground="#FBBF24" Margin="0,12,0,0"/>
                 </StackPanel>
             </Border>

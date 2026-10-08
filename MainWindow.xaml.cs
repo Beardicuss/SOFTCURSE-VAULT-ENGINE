@@ -103,7 +103,7 @@ namespace SoftcurseVaultCleaner
 
         private void InitializeUI()
         {
-            txtAdminStatus.Text = "[STANDARD USER MODE]";
+            txtAdminStatus.Text = "[ADMINISTRATOR MODE]";
             txtAdminStatus.Foreground = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromRgb(74, 222, 128));
 
@@ -127,7 +127,7 @@ namespace SoftcurseVaultCleaner
                     "\u2022 \u26a1 STARTUP MANAGER \u2014 Read-only startup and invalid-registry inspection\n" +
                     "\u2022 \u2753 FAQ \u2014 Common questions and answers\n" +
                     "\u2022 \u2699\ufe0f SETTINGS \u2014 Customize your cleanup preferences\n\n" +
-                    "TIP: The app runs in standard-user mode; supported maintenance elevates separately.\n" +
+                    "TIP: The app requests administrator approval at launch; in-use files may still remain locked.\n" +
                     "TIP: Close the app to minimize to the system tray.",
                     "Welcome to Vault Cleaner", MessageBoxButton.OK, MessageBoxImage.Information);
             }

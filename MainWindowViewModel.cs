@@ -373,7 +373,7 @@ namespace SoftcurseVaultCleaner
         {
             var config = BuildConfig();
             IsCleaning = true;
-            Status = "BUILDING CLEANUP PREVIEW";
+            Status = "VALIDATING CLEANUP PLAN";
 
             CleanupPlan plan;
             IReadOnlyList<CleanupPreviewItem> preview;
@@ -389,15 +389,14 @@ namespace SoftcurseVaultCleaner
             }
             catch (Exception ex)
             {
-                AddLogMessage($"[SAFETY] Could not build cleanup preview: {ex.Message}");
-                Status = "CLEANUP PREVIEW FAILED";
+                AddLogMessage($"[SAFETY] Could not validate the cleanup plan: {ex.Message}");
+                Status = "CLEANUP VALIDATION FAILED";
                 IsCleaning = false;
                 return;
             }
 
-            if (!ConfirmCleanup(config, preview))
+            if (!CanCleanupProceed(config, preview))
             {
-                Status = "CLEANUP CANCELLED BEFORE EXECUTION";
                 IsCleaning = false;
                 return;
             }
@@ -433,32 +432,22 @@ namespace SoftcurseVaultCleaner
             Status = "CLEANUP PROTOCOL COMPLETE";
         }
 
-        private bool ConfirmCleanup(
+        private bool CanCleanupProceed(
             CleanupConfig config,
             IReadOnlyList<CleanupPreviewItem> preview)
         {
-            var operations = new System.Collections.Generic.List<string>();
-            if (config.CleanRecycleBin) operations.Add("Empty Recycle Bin (not recoverable)");
-            if (config.CleanDNS) operations.Add("Command: flush the current DNS resolver cache");
-            if (config.DeepScanMode)
-                operations.Add("Elevated helper: supported DISM component cleanup without ResetBase (UAC required)");
-
             var blockedCustom = preview.Where(item => !item.IsAllowed &&
                 item.Target.Origin == CleanupTargetOrigin.UserSelected).ToList();
             if (blockedCustom.Count > 0)
             {
-                System.Windows.MessageBox.Show(
-                    "Cleanup cannot start because custom targets were blocked:\n\n" +
-                    string.Join("\n", blockedCustom.Select(item => $"• {item.CanonicalPath}: {item.ValidationMessage}")),
-                    "Cleanup Blocked",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning);
-                return false;
+                foreach (CleanupPreviewItem item in blockedCustom)
+                    AddLogMessage($"[SAFETY] SKIPPED custom target {item.CanonicalPath}: {item.ValidationMessage}");
             }
 
             var allowedFiles = preview.Where(item => item.IsAllowed).ToList();
             var blockedFiles = preview.Where(item => !item.IsAllowed).ToList();
-            if (operations.Count == 0 && allowedFiles.Count == 0)
+            bool hasNonFilesystemOperation = config.CleanRecycleBin || config.CleanDNS || config.DeepScanMode;
+            if (!hasNonFilesystemOperation && allowedFiles.Count == 0)
             {
                 Status = blockedFiles.Count > 0
                     ? "All discovered targets were skipped by the safety policy."
@@ -466,38 +455,11 @@ namespace SoftcurseVaultCleaner
                 return false;
             }
 
-            long estimatedBytes = allowedFiles.Sum(item => item.EstimatedBytes);
-            var categorySummaries = allowedFiles
-                .GroupBy(item => item.Target.Category)
-                .OrderByDescending(group => group.Sum(item => item.EstimatedBytes))
-                .Select(group =>
-                    $"• {group.Key}: {group.Count()} target(s), {SizeFormatter.Format(group.Sum(item => item.EstimatedBytes))}");
-            var largestTargets = allowedFiles
-                .OrderByDescending(item => item.EstimatedBytes)
-                .Take(8)
-                .Select(item => $"• {item.Target.DisplayName}: {SizeFormatter.Format(item.EstimatedBytes)}\n  {item.CanonicalPath}");
-
-            string message = $"CLEANUP SUMMARY\n\n" +
-                             $"{allowedFiles.Count} approved target(s), approximately {SizeFormatter.Format(estimatedBytes)}";
-            if (allowedFiles.Count > 0)
-                message += "\n\nBY CATEGORY:\n" + string.Join("\n", categorySummaries) +
-                           "\n\nLARGEST TARGETS:\n" + string.Join("\n", largestTargets);
-
             if (blockedFiles.Count > 0)
-                message += $"\n\nSKIPPED AUTOMATICALLY: {blockedFiles.Count} target(s) " +
-                           "were unavailable or contained Windows links/junctions. They will not be touched.";
+                AddLogMessage($"[SAFETY] {blockedFiles.Count} unavailable or linked target(s) will be skipped.");
 
-            if (operations.Count > 0)
-                message += "\n\nADDITIONAL OPERATIONS:\n" +
-                           string.Join("\n", operations.Select(operation => $"• {operation}"));
-
-            message += "\n\nApproved files will be moved to the Recycle Bin. " +
-                       "Emptying the Recycle Bin and system commands cannot be undone.\n\nContinue?";
-            return System.Windows.MessageBox.Show(
-                message,
-                "Cleanup Preview",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning) == System.Windows.MessageBoxResult.Yes;
+            AddLogMessage($"[SAFETY] Cleanup plan approved: {allowedFiles.Count} filesystem target(s). Starting immediately.");
+            return true;
         }
 
         private void AbortCleaning()

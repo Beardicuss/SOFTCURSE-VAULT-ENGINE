@@ -257,7 +257,7 @@ namespace SoftcurseVaultCleaner
             // execution in one catalog prevents target drift and duplicate cleanup logic.
             var tasks = new List<(string Name, Func<Task> Task)>();
             if (_approvedPlan.Targets.Count > 0)
-                tasks.Add(("Confirmed filesystem cleanup", async () =>
+                tasks.Add(("Validated filesystem cleanup", async () =>
                 {
                     CleanupExecutionResult result = await _cleanupEngine.ExecuteAsync(_approvedPlan, token);
                     foreach (CleanupItemResult item in result.Items)
@@ -265,7 +265,10 @@ namespace SoftcurseVaultCleaner
                         if (item.Succeeded)
                         {
                             Interlocked.Add(ref _totalSpaceFreed, item.BytesFreed);
-                            LogStatus($"MOVED: {item.Target.DisplayName} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB to Recycle Bin)");
+                            if (item.HadPartialFailure)
+                                LogStatus($"PARTIAL: {item.Target.DisplayName} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB moved) - {item.Message}");
+                            else
+                                LogStatus($"MOVED: {item.Target.DisplayName} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB to Recycle Bin)");
                         }
                         else
                             LogStatus($"{(item.WasSkipped ? "SKIPPED" : "FAILED")}: {item.Target.DisplayName} - {item.Message}");
@@ -581,7 +584,9 @@ namespace SoftcurseVaultCleaner
             if (item?.Succeeded == true)
             {
                 Interlocked.Add(ref _totalSpaceFreed, item.BytesFreed);
-                LogStatus($"CLEANED: {description} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB moved to Recycle Bin)");
+                LogStatus(item.HadPartialFailure
+                    ? $"PARTIAL: {description} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB moved) - {item.Message}"
+                    : $"CLEANED: {description} ({item.BytesFreed / (1024.0 * 1024.0):N1} MB moved to Recycle Bin)");
             }
             else
             {
